@@ -1,24 +1,92 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap");
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --hud-bg: #0a0a0a;
+  --hud-bg-elevated: #111111;
+  --hud-border: #1a1a1a;
+  --hud-accent: #00ff88;
+  --hud-accent-dim: #00cc6a;
+  --hud-warning: #ffaa00;
+  --hud-danger: #ff3366;
+  --hud-text: #e0e0e0;
+  --hud-text-dim: #888888;
+  --hud-text-bright: #ffffff;
+  --hud-glow: rgba(0, 255, 136, 0.3);
+
+  --background: var(--hud-bg);
+  --foreground: var(--hud-text);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  height: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  color: var(--hud-text);
+  background: var(--hud-bg);
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  letter-spacing: -0.01em;
 }
 
-body,
-html {
-  height: 100%;
+.font-mono {
+  font-family: "JetBrains Mono", "Courier New", monospace;
+}
+
+.hud-panel {
+  background: var(--hud-bg-elevated);
+  border: 1px solid var(--hud-border);
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.5), inset 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.hud-corner {
+  position: relative;
+}
+
+.hud-corner::before,
+.hud-corner::after {
+  content: "";
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border: 1px solid var(--hud-accent);
+}
+
+.hud-corner::before {
+  top: -1px;
+  left: -1px;
+  border-right: none;
+  border-bottom: none;
+}
+
+.hud-corner::after {
+  top: -1px;
+  right: -1px;
+  border-left: none;
+  border-bottom: none;
+}
+
+.hud-glow {
+  box-shadow: 0 0 10px var(--hud-glow), 0 0 20px rgba(0, 255, 136, 0.2);
+}
+
+.hud-scanline {
+  position: relative;
+  overflow: hidden;
+}
+
+.hud-scanline::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.15) 0px,
+    rgba(0, 0, 0, 0.15) 1px,
+    transparent 1px,
+    transparent 2px
+  );
+  pointer-events: none;
+  opacity: 0.3;
 }

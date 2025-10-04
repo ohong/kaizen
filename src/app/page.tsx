@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import Image from "next/image";
 
 import { supabase } from "@/lib/supabase";
 import {
@@ -294,28 +295,34 @@ export default function ManagerDashboard() {
   );
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100">
-      <div className="mx-auto flex max-w-[1600px] flex-col gap-10 px-6 py-10">
-        <header className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-          <div className="space-y-4">
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-4xl font-semibold text-white">Delivery Control Tower</h1>
-              <span className="rounded-full bg-purple-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-purple-300">
-                Supabase Engineering
-              </span>
-            </div>
-            <p className="max-w-3xl text-sm text-slate-400">
-              One view of how quickly we ship, where work is stalling, and which teammates need support. Built for the engineering manager to steer the Supabase platform team.
-            </p>
-            <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500">
-              <span className="uppercase tracking-wide">Last sync: {latestSync ? formatDateTime(latestSync) : "—"}</span>
-              <span>•</span>
-              <span className="font-medium text-slate-300">
-                Viewing {selectedRepository.owner}/{selectedRepository.name}
-              </span>
+    <div className="relative min-h-screen bg-[var(--hud-bg)] text-[var(--hud-text)]">
+      <div className="pointer-events-none fixed top-0 left-0 z-0 h-16 w-16 border-l-2 border-t-2 border-[var(--hud-accent)] opacity-30" />
+      <div className="pointer-events-none fixed top-0 right-0 z-0 h-16 w-16 border-r-2 border-t-2 border-[var(--hud-accent)] opacity-30" />
+      <div className="pointer-events-none fixed bottom-0 left-0 z-0 h-16 w-16 border-b-2 border-l-2 border-[var(--hud-accent)] opacity-30" />
+      <div className="pointer-events-none fixed bottom-0 right-0 z-0 h-16 w-16 border-b-2 border-r-2 border-[var(--hud-accent)] opacity-30" />
+
+      <header className="sticky top-0 z-50 border-b border-[var(--hud-border)] bg-[var(--hud-bg)]/95 backdrop-blur-sm">
+        <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-4 px-8 py-5">
+          <div className="flex flex-wrap items-center gap-4">
+            <Image
+              src="/logo.png"
+              alt="Kaizen"
+              width={140}
+              height={40}
+              className="h-10 w-auto opacity-90"
+            />
+            <div className="hidden h-8 w-px bg-[var(--hud-border)] md:block" />
+            <div className="font-mono text-xs uppercase tracking-[0.35em] text-[var(--hud-text-dim)]">
+              <span className="text-[var(--hud-accent)]">▸</span>{" "}
+              {`${selectedRepository.owner}/${selectedRepository.name}`.toUpperCase()}
             </div>
           </div>
-          <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="font-mono text-xs text-[var(--hud-text-dim)] uppercase tracking-wider">
+              Last Sync:{" "}
+              {latestSync ? formatDateTime(latestSync).toUpperCase() : "—"}
+            </div>
+            <div className="hidden h-8 w-px bg-[var(--hud-border)] sm:block" />
             <RepositorySelector
               repositories={repositories}
               selectedOwner={selectedRepository.owner}
@@ -325,38 +332,74 @@ export default function ManagerDashboard() {
             <button
               type="button"
               onClick={loadData}
-              className="rounded-full border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 transition-colors hover:border-slate-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+              className="hud-glow border border-[var(--hud-accent)] bg-[var(--hud-bg-elevated)] px-4 py-2 font-mono text-xs uppercase tracking-wider text-[var(--hud-accent)] transition-all duration-200 hover:bg-[var(--hud-accent)] hover:text-[var(--hud-bg)] disabled:cursor-not-allowed disabled:opacity-40"
               disabled={loading}
             >
-              {loading ? "Refreshing…" : "Refresh data"}
+              {loading ? "Syncing…" : "Sync Data"}
+            </button>
+            <button
+              type="button"
+              className="border border-[var(--hud-warning)] bg-[var(--hud-bg-elevated)] px-4 py-2 font-mono text-xs uppercase tracking-wider text-[var(--hud-warning)] transition-all duration-200 hover:bg-[var(--hud-warning)] hover:text-[var(--hud-bg)]"
+            >
+              Send Report
             </button>
           </div>
-        </header>
+        </div>
+      </header>
+
+      <main className="mx-auto flex max-w-[1600px] flex-col gap-10 px-8 py-12">
+        <section className="hud-panel hud-corner hud-scanline p-8">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="space-y-4">
+              <div className="font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
+                ◢ Control Center
+              </div>
+              <h1 className="text-4xl font-semibold text-[var(--hud-text-bright)]">
+                Delivery Control Tower
+              </h1>
+              <p className="max-w-3xl text-sm text-[var(--hud-text-dim)]">
+                One view of how quickly we ship, where work is stalling, and which teammates need support. Built for the engineering manager to steer the Supabase platform team.
+              </p>
+            </div>
+            <div className="min-w-[220px] rounded-lg border border-[var(--hud-border)] bg-[var(--hud-bg)] px-4 py-3 text-right">
+              <p className="font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
+                Viewing Repository
+              </p>
+              <p className="mt-2 font-mono text-sm text-[var(--hud-text-bright)]">
+                {selectedRepository.owner}/{selectedRepository.name}
+              </p>
+            </div>
+          </div>
+        </section>
 
         {error && (
-          <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+          <div className="hud-panel hud-corner border border-[var(--hud-danger)]/40 bg-[var(--hud-danger)]/15 px-4 py-3 text-sm text-[var(--hud-text-bright)]">
             {error}
           </div>
         )}
 
         {loading && prs.length === 0 ? (
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-12 text-center text-sm text-slate-400">
+          <div className="hud-panel hud-corner p-12 text-center text-sm text-[var(--hud-text-dim)]">
             Loading data for the control tower…
           </div>
         ) : (
           <>
-            <section className="grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+            <section className="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+              <div className="hud-panel hud-corner p-6">
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                   <div>
-                    <p className="text-xs uppercase tracking-wide text-slate-500">Team delivery health</p>
-                    <h2 className="mt-2 text-2xl font-semibold text-white">
+                    <p className="font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
+                      Team delivery health
+                    </p>
+                    <h2 className="mt-2 text-2xl font-semibold text-[var(--hud-text-bright)]">
                       {healthSummary.summary}
                     </h2>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs uppercase tracking-wide text-slate-500">Composite score</p>
-                    <p className="text-4xl font-semibold text-purple-300">
+                    <p className="font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
+                      Composite score
+                    </p>
+                    <p className="text-4xl font-semibold text-[var(--hud-accent)]">
                       {healthSummary.healthScore !== null ? healthSummary.healthScore : "—"}
                     </p>
                   </div>
@@ -391,7 +434,9 @@ export default function ManagerDashboard() {
                 </div>
 
                 <div className="mt-6">
-                  <p className="text-xs uppercase tracking-wide text-slate-500">Open PR backlog</p>
+                  <p className="font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
+                    Open PR backlog
+                  </p>
                   <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                     {healthSummary.backlogBuckets.map((bucket) => (
                       <BacklogPill
@@ -422,9 +467,11 @@ export default function ManagerDashboard() {
             </section>
 
             <section>
-              <h2 className="mb-4 text-xl font-semibold text-white">Action queue</h2>
+              <h2 className="mb-4 text-xl font-semibold text-[var(--hud-text-bright)]">
+                Action queue
+              </h2>
               {actionGroups.length === 0 ? (
-                <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 text-sm text-slate-400">
+                <div className="hud-panel hud-corner p-6 text-sm text-[var(--hud-text-dim)]">
                   No blocking pull requests right now. Keep the flow moving.
                 </div>
               ) : (
@@ -437,41 +484,57 @@ export default function ManagerDashboard() {
             </section>
 
             <section className="grid gap-6 xl:grid-cols-[420px_1fr]">
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-                <p className="text-xs uppercase tracking-wide text-slate-500">Top performers</p>
+              <div className="hud-panel hud-corner p-6">
+                <p className="font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
+                  Top performers
+                </p>
                 <div className="mt-3 grid gap-3">
-                  {topDevelopers.map((dev) => (
+                  {topDevelopers.map((dev, index) => (
                     <button
                       key={dev.author}
                       type="button"
                       onClick={() => setSelectedDeveloper(dev.author)}
-                      className={`flex items-center justify-between rounded-xl border px-4 py-3 text-left transition-colors ${
+                      className={`flex items-center justify-between rounded-xl border px-4 py-3 text-left transition-all duration-200 ${
                         selectedDeveloper === dev.author
-                          ? "border-purple-500 bg-purple-500/10"
-                          : "border-transparent bg-slate-950/40 hover:border-slate-700 hover:bg-slate-900"
+                          ? "border-[var(--hud-accent)]/50 bg-[var(--hud-accent)]/10"
+                          : "border-[var(--hud-border)] bg-[var(--hud-bg)] hover:border-[var(--hud-accent)]/40 hover:bg-[var(--hud-bg-elevated)]"
                       }`}
                     >
                       <div>
-                        <p className="text-sm font-medium text-white">{dev.author}</p>
-                        <p className="text-xs text-slate-500">Overall {dev.overallScore}</p>
+                        <p className="text-sm font-medium text-[var(--hud-text-bright)]">
+                          {dev.author}
+                        </p>
+                        <p className="text-xs text-[var(--hud-text-dim)]">
+                          Overall {dev.overallScore}
+                        </p>
                       </div>
-                      <span className="text-lg font-semibold text-purple-300">#{topDevelopers.indexOf(dev) + 1}</span>
+                      <span className="font-mono text-lg font-semibold text-[var(--hud-accent)]">
+                        #{index + 1}
+                      </span>
                     </button>
                   ))}
                 </div>
 
-                <p className="mt-6 text-xs uppercase tracking-wide text-slate-500">Needs attention</p>
+                <p className="mt-6 font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
+                  Needs attention
+                </p>
                 <div className="mt-3 space-y-2">
                   {improvementCandidates.map((dev) => (
                     <div
                       key={`${dev.author}-needs-attention`}
-                      className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-950/40 px-4 py-2"
+                      className="flex items-center justify-between rounded-lg border border-[var(--hud-border)] bg-[var(--hud-bg)] px-4 py-2"
                     >
                       <div>
-                        <p className="text-sm font-medium text-white">{dev.author}</p>
-                        <p className="text-xs text-slate-500">Score {dev.overallScore}</p>
+                        <p className="text-sm font-medium text-[var(--hud-text-bright)]">
+                          {dev.author}
+                        </p>
+                        <p className="text-xs text-[var(--hud-text-dim)]">
+                          Score {dev.overallScore}
+                        </p>
                       </div>
-                      <span className="text-xs text-amber-400">Coaching opportunity</span>
+                      <span className="font-mono text-xs uppercase tracking-wider text-[var(--hud-warning)]">
+                        Coaching opportunity
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -479,7 +542,7 @@ export default function ManagerDashboard() {
 
               <div className="grid gap-6">
                 <div className="grid gap-6 lg:grid-cols-2">
-                  <div className="h-[320px] rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+                  <div className="h-[320px] hud-panel hud-corner p-4">
                     <RadarChartViz
                       data={developerRadarData}
                       title={selectedDeveloper ? `${selectedDeveloper} - efficiency profile` : "Efficiency profile"}
@@ -528,9 +591,11 @@ export default function ManagerDashboard() {
             </section>
 
             <section>
-              <h2 className="mb-4 text-xl font-semibold text-white">Workflow signals</h2>
+              <h2 className="mb-4 text-xl font-semibold text-[var(--hud-text-bright)]">
+                Workflow signals
+              </h2>
               <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
-                <div className="h-[360px]">
+                <div className="h-[360px] hud-panel hud-corner p-4">
                   <ScatterChartViz
                     data={sizeVsTimeData}
                     xLabel="PR size (additions + deletions)"
@@ -540,7 +605,7 @@ export default function ManagerDashboard() {
                     yUnit=" h"
                   />
                 </div>
-                <div className="h-[360px]">
+                <div className="h-[360px] hud-panel hud-corner p-4">
                   <ScatterChartViz
                     data={reviewVsMergeData}
                     xLabel="Time to first review"
@@ -550,7 +615,7 @@ export default function ManagerDashboard() {
                     yUnit=" h"
                   />
                 </div>
-                <div className="h-[360px]">
+                <div className="h-[360px] hud-panel hud-corner p-4">
                   <DistributionChart
                     data={prSizeDistribution}
                     title="PR size distribution"
@@ -561,7 +626,7 @@ export default function ManagerDashboard() {
             </section>
 
             <section className="grid gap-6 xl:grid-cols-2">
-              <div className="h-[420px]">
+              <div className="h-[420px] hud-panel hud-corner p-4">
                 <ComparisonBarChart
                   data={comparisonSpeedData}
                   title="Cycle time vs industry"
@@ -570,7 +635,7 @@ export default function ManagerDashboard() {
                   lowerIsBetter
                 />
               </div>
-              <div className="h-[420px]">
+              <div className="h-[420px] hud-panel hud-corner p-4">
                 <ComparisonBarChart
                   data={comparisonQualityData}
                   title="Quality signals vs industry"
@@ -581,7 +646,9 @@ export default function ManagerDashboard() {
 
             {comparisonInsights.length > 0 && (
               <section>
-                <h2 className="mb-4 text-xl font-semibold text-white">Benchmark insights</h2>
+                <h2 className="mb-4 text-xl font-semibold text-[var(--hud-text-bright)]">
+                  Benchmark insights
+                </h2>
                 <div className="grid gap-4 lg:grid-cols-2">
                   {comparisonInsights.map((insight) => (
                     <InsightCard key={insight.metric} insight={insight} />
@@ -591,8 +658,8 @@ export default function ManagerDashboard() {
             )}
           </>
         )}
-      </div>
-    </main>
+      </main>
+    </div>
   );
 }
 
@@ -606,9 +673,11 @@ function SummaryStat({
   suffix?: string;
 }) {
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
-      <p className="text-xs uppercase tracking-wide text-slate-500">{label}</p>
-      <p className="mt-2 text-2xl font-semibold text-white">
+    <div className="hud-panel hud-corner p-5">
+      <p className="font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
+        {label}
+      </p>
+      <p className="mt-3 text-3xl font-semibold text-[var(--hud-text-bright)]">
         {value}
         {suffix ?? ""}
       </p>
@@ -627,12 +696,14 @@ function BacklogPill({
 }) {
   const percentage = total > 0 ? Math.round((count / total) * 100) : 0;
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
-      <div className="flex items-center justify-between text-xs text-slate-500">
+    <div className="hud-panel hud-corner p-5">
+      <div className="flex items-center justify-between font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
         <span>{label}</span>
         <span>{percentage}%</span>
       </div>
-      <p className="mt-2 text-xl font-semibold text-white">{formatInteger(count)}</p>
+      <p className="mt-3 text-2xl font-semibold text-[var(--hud-text-bright)]">
+        {formatInteger(count)}
+      </p>
     </div>
   );
 }
@@ -648,20 +719,20 @@ function FocusList({
   emptyLabel: string;
   tone: "warning" | "positive";
 }) {
-  const accent = tone === "warning" ? "text-amber-300" : "text-emerald-300";
-  const border = tone === "warning" ? "border-amber-500/40" : "border-emerald-500/40";
-  const background = tone === "warning" ? "bg-amber-500/5" : "bg-emerald-500/5";
+  const accentText = tone === "warning" ? "text-[#ffaa00]" : "text-[var(--hud-accent)]";
+  const accentBorder = tone === "warning" ? "border-[#ffaa00]/40" : "border-[var(--hud-accent)]/40";
+  const accentBackground = tone === "warning" ? "bg-[#ffaa00]/5" : "bg-[var(--hud-accent)]/5";
 
   return (
-    <div className={`rounded-2xl border ${border} ${background} p-5`}>
-      <p className={`text-xs uppercase tracking-wide ${accent}`}>{title}</p>
-      <div className="mt-3 space-y-2 text-sm text-slate-200">
+    <div className={`hud-panel hud-corner p-5 ${accentBorder} ${accentBackground}`}>
+      <p className={`font-mono text-xs uppercase tracking-wider ${accentText}`}>{title}</p>
+      <div className="mt-3 space-y-2 text-sm text-[var(--hud-text)]">
         {items.length === 0 ? (
-          <p className="text-slate-400">{emptyLabel}</p>
+          <p className="text-[var(--hud-text-dim)]">{emptyLabel}</p>
         ) : (
           items.map((item, index) => (
-            <div key={`${title}-${index}`} className="flex items-start gap-2">
-              <span className={`${accent}`}>•</span>
+            <div key={`${title}-${index}`} className="flex items-start gap-3">
+              <span className={`font-mono text-sm ${accentText}`}>▹</span>
               <p>{item}</p>
             </div>
           ))
@@ -673,13 +744,15 @@ function FocusList({
 
 function ActionGroupCard({ group }: { group: ActionGroup }) {
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+    <div className="flex flex-col gap-3 hud-panel hud-corner p-5">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-xs uppercase tracking-wide text-slate-500">{group.title}</p>
-          <p className="mt-1 text-sm text-slate-300">{group.description}</p>
+          <p className="font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
+            {group.title}
+          </p>
+          <p className="mt-1 text-sm text-[var(--hud-text)]">{group.description}</p>
         </div>
-        <span className="rounded-full bg-slate-800 px-3 py-1 text-xs font-semibold text-slate-300">
+        <span className="rounded-full border border-[var(--hud-accent)]/40 bg-[var(--hud-accent)]/10 px-3 py-1 font-mono text-xs uppercase tracking-wide text-[var(--hud-accent)]">
           {group.prs.length}
         </span>
       </div>
@@ -699,14 +772,16 @@ function PRListItem({ pr }: { pr: PullRequest }) {
       href={pr.html_url}
       target="_blank"
       rel="noreferrer"
-      className="block rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3 transition-colors hover:border-slate-600 hover:bg-slate-900"
+      className="block rounded-xl border border-[var(--hud-border)] bg-[var(--hud-bg)] px-4 py-3 transition-all duration-200 hover:border-[var(--hud-accent)]/60 hover:bg-[var(--hud-bg-elevated)]"
     >
-      <div className="flex items-center justify-between text-[11px] font-medium uppercase tracking-wide text-slate-500">
+      <div className="flex items-center justify-between font-mono text-[11px] uppercase tracking-wider text-[var(--hud-text-dim)]">
         <span>PR #{pr.pr_number}</span>
         <span>{formatRelativeDate(pr.updated_at)}</span>
       </div>
-      <p className="mt-2 line-clamp-2 text-sm font-medium text-white">{pr.title}</p>
-      <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-slate-400">
+      <p className="mt-2 line-clamp-2 text-sm font-medium text-[var(--hud-text-bright)]">
+        {pr.title}
+      </p>
+      <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-[var(--hud-text-dim)]">
         <span>{pr.author || "unknown"}</span>
         <span>•</span>
         <span>{formatInteger(pr.changed_files)} files</span>
@@ -740,18 +815,24 @@ function ScoreCard({
       : "text-red-400";
 
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+    <div className="hud-panel hud-corner p-5">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium text-white">{title}</h3>
+        <h3 className="text-sm font-semibold text-[var(--hud-text-bright)]">
+          {title}
+        </h3>
         <div className="text-right">
           <p className={`text-2xl font-semibold ${scoreColor}`}>{Math.round(score)}</p>
-          <p className="text-xs text-slate-500">{percentile}th percentile</p>
+          <p className="font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
+            {percentile}th percentile
+          </p>
         </div>
       </div>
-      <p className="mt-3 text-sm text-slate-300">{interpretation}</p>
-      <div className="mt-3 rounded-lg bg-slate-950/40 p-3">
-        <p className="text-xs font-medium text-slate-400">Recommendation</p>
-        <p className="mt-1 text-xs text-slate-300">{recommendation}</p>
+      <p className="mt-3 text-sm text-[var(--hud-text)]">{interpretation}</p>
+      <div className="mt-3 rounded-lg border border-[var(--hud-border)] bg-[var(--hud-bg)] p-3">
+        <p className="font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
+          Recommendation
+        </p>
+        <p className="mt-1 text-xs text-[var(--hud-text)]">{recommendation}</p>
       </div>
     </div>
   );
@@ -759,23 +840,40 @@ function ScoreCard({
 
 function InsightCard({ insight }: { insight: ComparisonInsight }) {
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
-      <h3 className="text-sm font-medium text-white">{insight.metric}</h3>
-      <div className="mt-3 grid grid-cols-3 gap-3 text-xs">
+    <div className="hud-panel hud-corner p-5">
+      <div className="flex items-start justify-between">
+        <h3 className="text-sm font-semibold text-[var(--hud-text-bright)]">
+          {insight.metric}
+        </h3>
+        <span className="font-mono text-xs uppercase tracking-wider text-[var(--hud-accent)]">
+          {insight.percentile}th pct
+        </span>
+      </div>
+      <div className="mt-4 grid grid-cols-3 gap-3 text-xs text-[var(--hud-text)]">
         <div>
-          <p className="text-slate-500">Your value</p>
-          <p className="mt-1 font-semibold text-white">{insight.yourValue.toFixed(1)}</p>
+          <p className="font-mono text-[11px] uppercase tracking-wider text-[var(--hud-text-dim)]">
+            Your
+          </p>
+          <p className="mt-1 font-semibold text-[var(--hud-text-bright)]">
+            {insight.yourValue.toFixed(1)}
+          </p>
         </div>
         <div>
-          <p className="text-slate-500">Industry median</p>
-          <p className="mt-1 font-semibold text-white">{insight.industryMedian.toFixed(1)}</p>
+          <p className="font-mono text-[11px] uppercase tracking-wider text-[var(--hud-text-dim)]">
+            Median
+          </p>
+          <p className="mt-1">{insight.industryMedian.toFixed(1)}</p>
         </div>
         <div>
-          <p className="text-slate-500">Percentile</p>
-          <p className="mt-1 font-semibold text-purple-400">{insight.percentile}th</p>
+          <p className="font-mono text-[11px] uppercase tracking-wider text-[var(--hud-text-dim)]">
+            Top 10%
+          </p>
+          <p className="mt-1 text-[var(--hud-accent)]">
+            {insight.industryTop10.toFixed(1)}
+          </p>
         </div>
       </div>
-      <p className="mt-3 text-sm text-slate-300">{insight.interpretation}</p>
+      <p className="mt-4 text-sm text-[var(--hud-text)]">{insight.interpretation}</p>
     </div>
   );
 }
@@ -795,6 +893,9 @@ function RepositorySelector({
   const selectedRepo = repositories.find(
     (repo) => repo.owner === selectedOwner && repo.name === selectedName
   );
+  const label = selectedRepo
+    ? selectedRepo.fullName
+    : `${selectedOwner}/${selectedName}`;
 
   if (repositories.length === 0) {
     return null;
@@ -805,15 +906,11 @@ function RepositorySelector({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900/60 px-4 py-2 text-sm font-medium text-slate-200 transition-colors hover:border-slate-500 hover:text-white"
+        className="flex items-center gap-2 rounded-lg border border-[var(--hud-border)] bg-[var(--hud-bg-elevated)] px-4 py-2 font-mono text-xs uppercase tracking-wider text-[var(--hud-text)] transition-all duration-200 hover:border-[var(--hud-accent)]/60 hover:text-[var(--hud-text-bright)]"
       >
-        <span>
-          {selectedRepo
-            ? selectedRepo.fullName
-            : `${selectedOwner}/${selectedName}`}
-        </span>
+        <span>{label.toUpperCase()}</span>
         <svg
-          className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
+          className={`h-3 w-3 transition-transform ${isOpen ? "rotate-180" : ""}`}
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -828,7 +925,7 @@ function RepositorySelector({
             className="fixed inset-0 z-10"
             onClick={() => setIsOpen(false)}
           />
-          <div className="absolute right-0 z-20 mt-2 w-80 rounded-xl border border-slate-700 bg-slate-900 shadow-xl">
+          <div className="absolute right-0 z-20 mt-2 w-80 rounded-xl border border-[var(--hud-border)] bg-[var(--hud-bg)] shadow-[0_20px_45px_rgba(0,0,0,0.45)]">
             <div className="max-h-96 overflow-y-auto p-2">
               {repositories.map((repo) => {
                 const isSelected =
@@ -845,24 +942,24 @@ function RepositorySelector({
                       onChange(repo.owner, repo.name);
                       setIsOpen(false);
                     }}
-                    className={`w-full rounded-lg px-3 py-2 text-left transition-colors ${
+                    className={`w-full rounded-lg border border-transparent px-3 py-2 text-left font-mono text-xs uppercase tracking-wider transition-all duration-150 ${
                       isSelected
-                        ? "bg-purple-500/20 text-white"
-                        : "text-slate-300 hover:bg-slate-800"
+                        ? "border-[var(--hud-accent)]/40 bg-[var(--hud-accent)]/10 text-[var(--hud-text-bright)]"
+                        : "text-[var(--hud-text)] hover:border-[var(--hud-border)] hover:bg-[var(--hud-bg-elevated)]"
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">
+                      <span>
                         {repo.fullName}
                         {isDefault && (
-                          <span className="ml-2 rounded-full bg-purple-500/20 px-2 py-0.5 text-xs text-purple-300">
+                          <span className="ml-2 rounded-full border border-[var(--hud-accent)]/30 bg-[var(--hud-accent)]/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-[var(--hud-accent)]">
                             Your team
                           </span>
                         )}
                       </span>
                       {isSelected && (
                         <svg
-                          className="h-4 w-4 text-purple-400"
+                          className="h-4 w-4 text-[var(--hud-accent)]"
                           fill="currentColor"
                           viewBox="0 0 20 20"
                         >
@@ -875,11 +972,11 @@ function RepositorySelector({
                       )}
                     </div>
                     {repo.description && (
-                      <p className="mt-1 text-xs text-slate-500 line-clamp-1">
+                      <p className="mt-1 line-clamp-1 text-[10px] text-[var(--hud-text-dim)]">
                         {repo.description}
                       </p>
                     )}
-                    <div className="mt-1 flex items-center gap-3 text-xs text-slate-500">
+                    <div className="mt-1 flex items-center gap-3 text-[10px] text-[var(--hud-text-dim)]">
                       {repo.prCount !== undefined && (
                         <span>{formatInteger(repo.prCount)} PRs</span>
                       )}
