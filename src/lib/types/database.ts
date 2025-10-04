@@ -21,6 +21,9 @@ export interface Database {
           requested_teams: any[] | null;
           head_ref: string;
           base_ref: string;
+          // Repository tracking
+          repository_owner: string;
+          repository_name: string;
           // PR size metrics
           additions: number | null;
           deletions: number | null;
@@ -59,6 +62,9 @@ export interface Database {
           requested_teams?: any[] | null;
           head_ref: string;
           base_ref: string;
+          // Repository tracking
+          repository_owner?: string;
+          repository_name?: string;
           // PR size metrics
           additions?: number | null;
           deletions?: number | null;
@@ -97,6 +103,9 @@ export interface Database {
           requested_teams?: any[] | null;
           head_ref?: string;
           base_ref?: string;
+          // Repository tracking
+          repository_owner?: string;
+          repository_name?: string;
           // PR size metrics
           additions?: number | null;
           deletions?: number | null;
@@ -117,6 +126,95 @@ export interface Database {
           synced_at?: string;
         };
       };
+      repositories: {
+        Row: {
+          id: string;
+          owner: string;
+          name: string;
+          full_name: string;
+          description: string | null;
+          stars: number | null;
+          company_size: string | null;
+          industry: string | null;
+          is_benchmark: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          owner: string;
+          name: string;
+          full_name: string;
+          description?: string | null;
+          stars?: number | null;
+          company_size?: string | null;
+          industry?: string | null;
+          is_benchmark?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          owner?: string;
+          name?: string;
+          full_name?: string;
+          description?: string | null;
+          stars?: number | null;
+          company_size?: string | null;
+          industry?: string | null;
+          is_benchmark?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+    };
+    Views: {
+      developer_metrics: {
+        Row: {
+          author: string;
+          repository_owner: string;
+          repository_name: string;
+          total_prs: number;
+          merged_prs: number;
+          open_prs: number;
+          merge_rate_percent: number;
+          avg_merge_hours: number | null;
+          avg_time_to_first_review_hours: number | null;
+          total_additions: number | null;
+          total_deletions: number | null;
+          total_changes: number | null;
+          avg_pr_size: number | null;
+          avg_engagement: number | null;
+          small_prs: number;
+          medium_prs: number;
+          large_prs: number;
+          last_activity: string | null;
+          activity_span_days: number | null;
+        };
+      };
+      repository_metrics: {
+        Row: {
+          repository_owner: string;
+          repository_name: string;
+          active_contributors: number;
+          total_prs: number;
+          merged_prs: number;
+          open_prs: number;
+          merge_rate_percent: number;
+          avg_merge_hours: number | null;
+          median_merge_hours: number | null;
+          avg_time_to_first_review_hours: number | null;
+          avg_reviews_per_pr: number | null;
+          avg_pr_size: number | null;
+          total_changes: number | null;
+          small_prs: number;
+          medium_prs: number;
+          large_prs: number;
+          first_pr_date: string | null;
+          last_pr_date: string | null;
+          data_span_days: number | null;
+        };
+      };
     };
   };
 }
@@ -124,3 +222,8 @@ export interface Database {
 export type PullRequest = Database['public']['Tables']['pull_requests']['Row'];
 export type PullRequestInsert = Database['public']['Tables']['pull_requests']['Insert'];
 export type PullRequestUpdate = Database['public']['Tables']['pull_requests']['Update'];
+export type Repository = Database['public']['Tables']['repositories']['Row'];
+export type RepositoryInsert = Database['public']['Tables']['repositories']['Insert'];
+export type RepositoryUpdate = Database['public']['Tables']['repositories']['Update'];
+export type DeveloperMetrics = Database['public']['Views']['developer_metrics']['Row'];
+export type RepositoryMetrics = Database['public']['Views']['repository_metrics']['Row'];

@@ -1,7 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import {
+  getAvailableRepositories,
+  parseRepositoryFromUrl,
+  buildRepositoryUrl,
+  DEFAULT_REPO,
+  type RepositoryOption,
+} from "@/lib/repository-utils";
 
 type PullRequest = {
   id: string;
@@ -68,12 +76,21 @@ type ViewMode = "prs" | "contributors";
 const numberFormatter = new Intl.NumberFormat("en-US");
 
 export default function DashboardPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
   const [prs, setPrs] = useState<PullRequest[]>([]);
   const [selectedPrNumber, setSelectedPrNumber] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("prs");
   const [selectedContributor, setSelectedContributor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [repositories, setRepositories] = useState<RepositoryOption[]>([]);
+
+  // Get selected repository from URL or use default
+  const selectedRepository = useMemo(() => {
+    return parseRepositoryFromUrl(searchParams);
+  }, [searchParams]);
 
   const loadPrs = useCallback(async () => {
     setLoading(true);
@@ -83,6 +100,8 @@ export default function DashboardPage() {
       const { data, error: queryError } = await supabase
         .from<PullRequest>("pull_requests")
         .select("*")
+        .eq("repository_owner", selectedRepository.owner)
+        .eq("repository_name", selectedRepository.name)
         .order("updated_at", { ascending: false });
 
       if (queryError) {
@@ -98,11 +117,24 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedRepository]);
 
   useEffect(() => {
     loadPrs();
   }, [loadPrs]);
+
+  useEffect(() => {
+    // Load available repositories
+    getAvailableRepositories().then(setRepositories);
+  }, []);
+
+  const handleRepositoryChange = useCallback(
+    (owner: string, name: string) => {
+      const url = buildRepositoryUrl(owner, name);
+      router.push(url);
+    },
+    [router]
+  );
 
   useEffect(() => {
     if (!selectedPrNumber && prs.length > 0) {
@@ -199,11 +231,29 @@ export default function DashboardPage() {
               Insights gathered from the GitHub sync. Toggle between pull requests and contributors to
               trace the work and the people driving the project forward.
             </p>
-            <p className="mt-4 text-xs uppercase tracking-widest text-slate-500">
-              Last synced: {latestSync ? formatDate(latestSync) : "—"}
-            </p>
+            <div className="mt-4 flex items-center gap-4">
+              <p className="text-xs uppercase tracking-widest text-slate-500">
+                Last synced: {latestSync ? formatDate(latestSync) : "—"}
+              </p>
+              <span className="text-slate-700">•</span>
+              <p className="text-xs font-medium text-slate-300">
+                Viewing: {selectedRepository.owner}/{selectedRepository.name}
+              </p>
+            </div>
           </div>
           <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
+            <RepositorySelector
+              repositories={repositories}
+              selectedOwner={selectedRepository.owner}
+              selectedName={selectedRepository.name}
+              onChange={handleRepositoryChange}
+            />
+            <a
+              href="/insights"
+              className="rounded-full border border-purple-600 bg-purple-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-purple-500"
+            >
+              View Insights →
+            </a>
             <ViewModeToggle value={viewMode} onChange={setViewMode} />
             <button
               type="button"
@@ -846,4 +896,112 @@ function capitalise(value: string): string {
     return value;
   }
   return value[0].toUpperCase() + value.slice(1);
+}
+
+function RepositorySelector({
+  repositories,
+  selectedOwner,
+  selectedName,
+  onChange,
+}: {
+  repositories: RepositoryOption[];
+  selectedOwner: string;
+  selectedName: string;
+  onChange: (owner: string, name: string) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const selectedRepo = repositories.find(
+    (r) => r.owner === selectedOwner && r.name === selectedName
+  );
+
+  if (repositories.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900/60 px-4 py-2 text-sm font-medium text-slate-200 transition-colors hover:border-slate-500 hover:text-white"
+      >
+        <span>
+          {selectedRepo ? selectedRepo.fullName : `${selectedOwner}/${selectedName}`}
+        </span>
+        <svg
+          className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {isOpen && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 z-10"
+            onClick={() => setIsOpen(false)}
+          />
+
+          {/* Dropdown */}
+          <div className="absolute right-0 z-20 mt-2 w-80 rounded-xl border border-slate-700 bg-slate-900 shadow-xl">
+            <div className="max-h-96 overflow-y-auto p-2">
+              {repositories.map((repo) => {
+                const isSelected = repo.owner === selectedOwner && repo.name === selectedName;
+                const isDefault = repo.owner === DEFAULT_REPO.owner && repo.name === DEFAULT_REPO.name;
+
+                return (
+                  <button
+                    key={repo.fullName}
+                    type="button"
+                    onClick={() => {
+                      onChange(repo.owner, repo.name);
+                      setIsOpen(false);
+                    }}
+                    className={`w-full rounded-lg px-3 py-2 text-left transition-colors ${
+                      isSelected
+                        ? "bg-purple-500/20 text-white"
+                        : "text-slate-300 hover:bg-slate-800"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">
+                        {repo.fullName}
+                        {isDefault && (
+                          <span className="ml-2 rounded-full bg-purple-500/20 px-2 py-0.5 text-xs text-purple-300">
+                            Your Team
+                          </span>
+                        )}
+                      </span>
+                      {isSelected && (
+                        <svg className="h-4 w-4 text-purple-400" fill="currentColor" viewBox="0 0 20 20">
+                          <path
+                            fillRule="evenodd"
+                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      )}
+                    </div>
+                    {repo.description && (
+                      <p className="mt-1 text-xs text-slate-500 line-clamp-1">{repo.description}</p>
+                    )}
+                    <div className="mt-1 flex items-center gap-3 text-xs text-slate-500">
+                      {repo.prCount !== undefined && <span>{formatNumber(repo.prCount)} PRs</span>}
+                      {repo.contributorCount !== undefined && (
+                        <span>{repo.contributorCount} contributors</span>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
 }

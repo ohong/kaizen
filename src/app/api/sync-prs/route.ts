@@ -24,6 +24,9 @@ interface PullRequest {
   requested_teams: any[];
   head_ref: string;
   base_ref: string;
+  // Repository tracking
+  repository_owner: string;
+  repository_name: string;
   // PR size metrics
   additions: number | null;
   deletions: number | null;
@@ -169,6 +172,9 @@ export async function GET(request: NextRequest) {
           requested_teams: prDetail.requested_teams || [],
           head_ref: prDetail.head?.ref || 'unknown',
           base_ref: prDetail.base?.ref || 'unknown',
+          // Repository tracking
+          repository_owner: 'supabase',
+          repository_name: 'supabase',
           // PR size metrics (now available from detail endpoint)
           additions: prDetail.additions ?? null,
           deletions: prDetail.deletions ?? null,
