@@ -2,243 +2,317 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+
 import { supabase } from "@/lib/supabase";
 import {
+  DEFAULT_REPO,
+  buildRepositoryUrl,
   getAvailableRepositories,
   parseRepositoryFromUrl,
-  buildRepositoryUrl,
-  DEFAULT_REPO,
   type RepositoryOption,
 } from "@/lib/repository-utils";
+import {
+  calculateDeveloperEfficiency,
+  generateComparisonInsights,
+  generateSizeVsTimeScatter,
+  generateReviewTimeVsMergeTimeScatter,
+  type ComparisonInsight,
+} from "@/lib/metrics";
+import type {
+  DeveloperMetrics,
+  PullRequest,
+  RepositoryMetrics,
+} from "@/lib/types/database";
+import {
+  ComparisonBarChart,
+  DistributionChart,
+  RadarChartViz,
+  ScatterChartViz,
+} from "@/components/charts";
 
-type PullRequest = {
-  id: string;
-  pr_number: number;
+interface HealthSummary {
+  healthScore: number | null;
+  summary: string;
+  throughputPerWeek: number | null;
+  mergeRate: number | null;
+  avgMergeHours: number | null;
+  avgTimeToFirstReview: number | null;
+  avgReviewsPerPR: number | null;
+  activeContributors: number | null;
+  smallPRShare: number | null;
+  largePRShare: number | null;
+  openPrCount: number;
+  stalePrCount: number;
+  backlogBuckets: { label: string; count: number }[];
+  wins: string[];
+  focusAreas: string[];
+}
+
+interface ActionGroup {
+  key: string;
   title: string;
-  body: string | null;
-  state: "open" | "closed";
-  author: string;
-  author_avatar_url: string | null;
-  created_at: string;
-  updated_at: string;
-  merged_at: string | null;
-  closed_at: string | null;
-  html_url: string;
-  draft: boolean;
-  labels: unknown[];
-  requested_reviewers: unknown[];
-  requested_teams: unknown[];
-  head_ref: string;
-  base_ref: string;
-  additions: number | null;
-  deletions: number | null;
-  changed_files: number | null;
-  commits_count: number | null;
-  comments_count: number;
-  review_comments_count: number;
-  reviews_count: number;
-  is_merged: boolean;
-  mergeable_state: string | null;
-  assignees: unknown[];
-  time_to_first_review_hours: number | null;
-  time_to_merge_hours: number | null;
-  time_to_close_hours: number | null;
-  synced_at: string;
-};
+  description: string;
+  prs: PullRequest[];
+}
 
-type SummaryMetrics = {
-  totalPrs: number;
-  openPrs: number;
-  closedPrs: number;
-  mergedPrs: number;
-  topMerger?: { author: string; count: number };
-  topChangeAuthor?: { author: string; changes: number };
-  averageMergeHours: number | null;
-};
-
-type ContributorSummary = {
-  author: string;
-  totalPrs: number;
-  mergedPrs: number;
-  openPrs: number;
-  closedPrs: number;
-  totalAdditions: number;
-  totalDeletions: number;
-  totalChanges: number;
-  averageMergeHours: number | null;
-  lastActivity: string | null;
-  recentPrTitle: string | null;
-  recentPrNumber: number | null;
-};
-
-type ViewMode = "prs" | "contributors";
-
-const numberFormatter = new Intl.NumberFormat("en-US");
-
-export default function DashboardPage() {
+export default function ManagerDashboard() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
   const [prs, setPrs] = useState<PullRequest[]>([]);
-  const [selectedPrNumber, setSelectedPrNumber] = useState<number | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>("prs");
-  const [selectedContributor, setSelectedContributor] = useState<string | null>(null);
+  const [developerMetrics, setDeveloperMetrics] = useState<DeveloperMetrics[]>([]);
+  const [repositoryMetrics, setRepositoryMetrics] = useState<RepositoryMetrics[]>([]);
+  const [repositories, setRepositories] = useState<RepositoryOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [repositories, setRepositories] = useState<RepositoryOption[]>([]);
+  const [selectedDeveloper, setSelectedDeveloper] = useState<string | null>(null);
 
-  // Get selected repository from URL or use default
-  const selectedRepository = useMemo(() => {
-    return parseRepositoryFromUrl(searchParams);
-  }, [searchParams]);
+  const selectedRepository = useMemo(
+    () => parseRepositoryFromUrl(searchParams),
+    [searchParams]
+  );
 
-  const loadPrs = useCallback(async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
 
     try {
-      const { data, error: queryError } = await supabase
-        .from<PullRequest>("pull_requests")
-        .select("*")
-        .eq("repository_owner", selectedRepository.owner)
-        .eq("repository_name", selectedRepository.name)
-        .order("updated_at", { ascending: false });
+      const [prResult, devResult, repoResult] = await Promise.all([
+        supabase
+          .from<PullRequest>("pull_requests")
+          .select("*")
+          .eq("repository_owner", selectedRepository.owner)
+          .eq("repository_name", selectedRepository.name)
+          .order("updated_at", { ascending: false }),
+        supabase
+          .from<DeveloperMetrics>("developer_metrics")
+          .select("*")
+          .eq("repository_owner", selectedRepository.owner)
+          .eq("repository_name", selectedRepository.name),
+        supabase.from<RepositoryMetrics>("repository_metrics").select("*"),
+      ]);
 
-      if (queryError) {
-        setError(queryError.message);
-        setPrs([]);
-        return;
-      }
+      if (prResult.error) throw prResult.error;
+      if (devResult.error) throw devResult.error;
+      if (repoResult.error) throw repoResult.error;
 
-      setPrs(data ?? []);
+      setPrs(prResult.data ?? []);
+      setDeveloperMetrics(devResult.data ?? []);
+      setRepositoryMetrics(repoResult.data ?? []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load pull requests");
+      setError(err instanceof Error ? err.message : "Failed to load data");
       setPrs([]);
+      setDeveloperMetrics([]);
+      setRepositoryMetrics([]);
     } finally {
       setLoading(false);
     }
   }, [selectedRepository]);
 
   useEffect(() => {
-    loadPrs();
-  }, [loadPrs]);
+    loadData();
+  }, [loadData]);
 
   useEffect(() => {
-    // Load available repositories
     getAvailableRepositories().then(setRepositories);
   }, []);
 
-  const handleRepositoryChange = useCallback(
-    (owner: string, name: string) => {
-      const url = buildRepositoryUrl(owner, name);
-      router.push(url);
-    },
-    [router]
+  const repoMetrics = useMemo(
+    () =>
+      repositoryMetrics.find(
+        (r) =>
+          r.repository_owner === selectedRepository.owner &&
+          r.repository_name === selectedRepository.name
+      ),
+    [repositoryMetrics, selectedRepository]
+  );
+
+  const benchmarkRepos = useMemo(
+    () =>
+      repositoryMetrics.filter(
+        (r) =>
+          r.repository_owner !== selectedRepository.owner ||
+          r.repository_name !== selectedRepository.name
+      ),
+    [repositoryMetrics, selectedRepository]
+  );
+
+  const developerEfficiencies = useMemo(() => {
+    if (!developerMetrics.length || !repositoryMetrics.length) {
+      return [];
+    }
+
+    return developerMetrics.map((dm) =>
+      calculateDeveloperEfficiency(dm, repositoryMetrics)
+    );
+  }, [developerMetrics, repositoryMetrics]);
+
+  const sortedDevelopers = useMemo(
+    () =>
+      [...developerEfficiencies].sort(
+        (a, b) => b.overallScore - a.overallScore
+      ),
+    [developerEfficiencies]
   );
 
   useEffect(() => {
-    if (!selectedPrNumber && prs.length > 0) {
-      setSelectedPrNumber(prs[0].pr_number);
-    }
-  }, [prs, selectedPrNumber]);
-
-  const selectedPr = useMemo(() => {
-    if (prs.length === 0) {
-      return null;
-    }
-
-    return prs.find((pr) => pr.pr_number === selectedPrNumber) ?? prs[0];
-  }, [prs, selectedPrNumber]);
-
-  const metrics = useMemo(() => computeSummary(prs), [prs]);
-
-  const latestSync = useMemo(() => {
-    if (prs.length === 0) {
-      return null;
-    }
-
-    return prs.reduce<string | null>((acc, pr) => {
-      if (!pr.synced_at) {
-        return acc;
-      }
-      if (!acc) {
-        return pr.synced_at;
-      }
-      return new Date(pr.synced_at) > new Date(acc) ? pr.synced_at : acc;
-    }, null);
-  }, [prs]);
-
-  const contributorSummaries = useMemo(() => computeContributors(prs), [prs]);
-
-  useEffect(() => {
-    if (viewMode !== "contributors") {
-      return;
-    }
-
-    if (contributorSummaries.length === 0) {
-      if (selectedContributor !== null) {
-        setSelectedContributor(null);
-      }
+    if (!sortedDevelopers.length) {
+      setSelectedDeveloper(null);
       return;
     }
 
     if (
-      !selectedContributor ||
-      !contributorSummaries.some((entry) => entry.author === selectedContributor)
+      !selectedDeveloper ||
+      !sortedDevelopers.some((dev) => dev.author === selectedDeveloper)
     ) {
-      const fallback = contributorSummaries[0]?.author ?? null;
-      if (fallback && fallback !== selectedContributor) {
-        setSelectedContributor(fallback);
-      }
+      setSelectedDeveloper(sortedDevelopers[0].author);
     }
-  }, [viewMode, contributorSummaries, selectedContributor]);
+  }, [sortedDevelopers, selectedDeveloper]);
 
-  const selectedContributorSummary = useMemo(() => {
-    if (contributorSummaries.length === 0) {
+  const selectedDeveloperData = useMemo(() => {
+    if (!sortedDevelopers.length) {
       return null;
     }
-    if (!selectedContributor) {
-      return contributorSummaries[0];
-    }
     return (
-      contributorSummaries.find((entry) => entry.author === selectedContributor) ??
-      contributorSummaries[0]
+      sortedDevelopers.find((dev) => dev.author === selectedDeveloper) ??
+      sortedDevelopers[0]
     );
-  }, [contributorSummaries, selectedContributor]);
+  }, [sortedDevelopers, selectedDeveloper]);
 
-  const contributorPrs = useMemo(() => {
-    if (!selectedContributorSummary) {
-      return [];
+  const developerRadarData = useMemo(() => {
+    if (!selectedDeveloperData) return [];
+
+    return [
+      { dimension: "Velocity", value: selectedDeveloperData.velocityScore.score, fullMark: 100 },
+      { dimension: "Quality", value: selectedDeveloperData.qualityScore.score, fullMark: 100 },
+      { dimension: "Collaboration", value: selectedDeveloperData.collaborationScore.score, fullMark: 100 },
+      { dimension: "Consistency", value: selectedDeveloperData.consistencyScore.score, fullMark: 100 },
+    ];
+  }, [selectedDeveloperData]);
+
+  const topDevelopers = useMemo(
+    () => sortedDevelopers.slice(0, 5),
+    [sortedDevelopers]
+  );
+
+  const improvementCandidates = useMemo(() => {
+    if (sortedDevelopers.length <= 3) {
+      return [...sortedDevelopers].reverse();
     }
+    return sortedDevelopers.slice(-3).reverse();
+  }, [sortedDevelopers]);
 
-    return prs
-      .filter((pr) => pr.author === selectedContributorSummary.author)
-      .sort(
-        (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
-      );
-  }, [prs, selectedContributorSummary]);
+  const healthSummary = useMemo(
+    () => computeTeamHealth(repoMetrics, prs),
+    [repoMetrics, prs]
+  );
 
-  const isContributorView = viewMode === "contributors";
-  const hasPrs = prs.length > 0;
+  const actionGroups = useMemo(
+    () => buildActionGroups(prs),
+    [prs]
+  );
+
+  const latestSync = useMemo(() => computeLatestSync(prs), [prs]);
+
+  const prSizeDistribution = useMemo(() => {
+    if (!repoMetrics) return [];
+    return [
+      { category: "Small (≤200 lines)", value: repoMetrics.small_prs, color: "#10b981" },
+      { category: "Medium (201-1000)", value: repoMetrics.medium_prs, color: "#f59e0b" },
+      { category: "Large (>1000)", value: repoMetrics.large_prs, color: "#ef4444" },
+    ];
+  }, [repoMetrics]);
+
+  const sizeVsTimeData = useMemo(
+    () => generateSizeVsTimeScatter(prs),
+    [prs]
+  );
+
+  const reviewVsMergeData = useMemo(
+    () => generateReviewTimeVsMergeTimeScatter(prs),
+    [prs]
+  );
+
+  const comparisonInsights = useMemo<ComparisonInsight[]>(() => {
+    if (!repoMetrics || !benchmarkRepos.length) return [];
+    return generateComparisonInsights(repoMetrics, benchmarkRepos);
+  }, [repoMetrics, benchmarkRepos]);
+
+  const comparisonSpeedData = useMemo(() => {
+    if (!repoMetrics || !benchmarkRepos.length) return [];
+
+    const mergeTimes = benchmarkRepos
+      .map((r) => r.avg_merge_hours || 0)
+      .filter((value) => value > 0);
+    const reviewTimes = benchmarkRepos
+      .map((r) => r.avg_time_to_first_review_hours || 0)
+      .filter((value) => value > 0);
+
+    return [
+      {
+        name: "Time to Merge (h)",
+        yourTeam: repoMetrics.avg_merge_hours || 0,
+        industryMedian: median(mergeTimes),
+        topPerformer: mergeTimes.length ? Math.min(...mergeTimes) : undefined,
+      },
+      {
+        name: "First Review (h)",
+        yourTeam: repoMetrics.avg_time_to_first_review_hours || 0,
+        industryMedian: median(reviewTimes),
+        topPerformer: reviewTimes.length ? Math.min(...reviewTimes) : undefined,
+      },
+    ];
+  }, [repoMetrics, benchmarkRepos]);
+
+  const comparisonQualityData = useMemo(() => {
+    if (!repoMetrics || !benchmarkRepos.length) return [];
+
+    const mergeRates = benchmarkRepos.map((r) => r.merge_rate_percent || 0);
+    const reviewDepths = benchmarkRepos.map((r) => r.avg_reviews_per_pr || 0);
+
+    return [
+      {
+        name: "Merge Rate (%)",
+        yourTeam: repoMetrics.merge_rate_percent || 0,
+        industryMedian: median(mergeRates),
+        topPerformer: mergeRates.length ? Math.max(...mergeRates) : undefined,
+      },
+      {
+        name: "Reviews per PR",
+        yourTeam: repoMetrics.avg_reviews_per_pr || 0,
+        industryMedian: median(reviewDepths),
+        topPerformer: reviewDepths.length ? Math.max(...reviewDepths) : undefined,
+      },
+    ];
+  }, [repoMetrics, benchmarkRepos]);
+
+  const handleRepositoryChange = useCallback(
+    (owner: string, name: string) => {
+      router.push(buildRepositoryUrl(owner, name));
+    },
+    [router]
+  );
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100">
-      <div className="mx-auto flex max-w-7xl flex-col gap-10 px-6 py-10">
+      <div className="mx-auto flex max-w-[1600px] flex-col gap-10 px-6 py-10">
         <header className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <h1 className="text-4xl font-semibold text-white">Pull Request Intelligence</h1>
-            <p className="mt-2 max-w-2xl text-sm text-slate-400">
-              Insights gathered from the GitHub sync. Toggle between pull requests and contributors to
-              trace the work and the people driving the project forward.
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-4xl font-semibold text-white">Delivery Control Tower</h1>
+              <span className="rounded-full bg-purple-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-purple-300">
+                Supabase Engineering
+              </span>
+            </div>
+            <p className="max-w-3xl text-sm text-slate-400">
+              One view of how quickly we ship, where work is stalling, and which teammates need support. Built for the engineering manager to steer the Supabase platform team.
             </p>
-            <div className="mt-4 flex items-center gap-4">
-              <p className="text-xs uppercase tracking-widest text-slate-500">
-                Last synced: {latestSync ? formatDate(latestSync) : "—"}
-              </p>
-              <span className="text-slate-700">•</span>
-              <p className="text-xs font-medium text-slate-300">
-                Viewing: {selectedRepository.owner}/{selectedRepository.name}
-              </p>
+            <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500">
+              <span className="uppercase tracking-wide">Last sync: {latestSync ? formatDateTime(latestSync) : "—"}</span>
+              <span>•</span>
+              <span className="font-medium text-slate-300">
+                Viewing {selectedRepository.owner}/{selectedRepository.name}
+              </span>
             </div>
           </div>
           <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
@@ -248,17 +322,10 @@ export default function DashboardPage() {
               selectedName={selectedRepository.name}
               onChange={handleRepositoryChange}
             />
-            <a
-              href="/insights"
-              className="rounded-full border border-purple-600 bg-purple-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-purple-500"
-            >
-              View Insights →
-            </a>
-            <ViewModeToggle value={viewMode} onChange={setViewMode} />
             <button
               type="button"
-              onClick={loadPrs}
-              className="rounded-full border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 transition-colors hover:border-slate-500 hover:text-white"
+              onClick={loadData}
+              className="rounded-full border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 transition-colors hover:border-slate-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
               disabled={loading}
             >
               {loading ? "Refreshing…" : "Refresh data"}
@@ -266,636 +333,451 @@ export default function DashboardPage() {
           </div>
         </header>
 
-        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <SummaryTile label="Total PRs" value={metrics.totalPrs.toString()} />
-          <SummaryTile
-            label="Open PRs"
-            value={metrics.openPrs.toString()}
-            accent="text-emerald-300"
-          />
-          <SummaryTile
-            label="Merged PRs"
-            value={metrics.mergedPrs.toString()}
-            sublabel={metrics.topMerger ? `Top: ${metrics.topMerger.author} (${metrics.topMerger.count})` : undefined}
-            accent="text-purple-300"
-          />
-          <SummaryTile
-            label="Largest Churn"
-            value={metrics.topChangeAuthor ? metrics.topChangeAuthor.author : "—"}
-            sublabel={metrics.topChangeAuthor ? `${formatNumber(metrics.topChangeAuthor.changes)} lines` : undefined}
-            accent="text-amber-300"
-          />
-          <SummaryTile
-            label="Avg Time to Merge"
-            value={formatHours(metrics.averageMergeHours)}
-            sublabel="Across merged PRs"
-            className="sm:col-span-2 lg:col-span-1"
-          />
-          <SummaryTile
-            label="Closed (incl. merged)"
-            value={metrics.closedPrs.toString()}
-            sublabel="Merged + closed without merge"
-            className="sm:col-span-2 lg:col-span-1"
-          />
-        </section>
-
         {error && (
           <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
             {error}
           </div>
         )}
 
-        {loading && !hasPrs ? (
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-10 text-center text-sm text-slate-400">
-            Loading pull requests…
-          </div>
-        ) : !hasPrs ? (
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-10 text-center text-sm text-slate-400">
-            No pull requests synced yet. Trigger the sync to populate this dashboard.
-          </div>
-        ) : isContributorView ? (
-          <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
-            <aside className="flex max-h-[70vh] flex-col gap-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
-              <div className="flex items-center justify-between text-xs uppercase tracking-wide text-slate-500">
-                <span>Contributors</span>
-                <span>{contributorSummaries.length}</span>
-              </div>
-              <div className="flex flex-col gap-2 overflow-y-auto">
-                {contributorSummaries.map((contributor) => {
-                  const isSelected =
-                    selectedContributorSummary?.author === contributor.author;
-                  return (
-                    <button
-                      key={contributor.author || "unknown"}
-                      type="button"
-                      onClick={() => setSelectedContributor(contributor.author)}
-                      className={`rounded-xl border px-4 py-3 text-left transition-colors ${
-                        isSelected
-                          ? "border-slate-500 bg-slate-800"
-                          : "border-transparent bg-slate-950/40 hover:border-slate-700 hover:bg-slate-900"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between text-[11px] font-medium uppercase tracking-wide text-slate-500">
-                        <span>{contributor.author || "unknown"}</span>
-                        <span>{formatNumber(contributor.totalPrs)} PRs</span>
-                      </div>
-                      <p className="mt-2 line-clamp-2 text-sm font-medium text-slate-100">
-                        {contributor.recentPrTitle ?? "No recent activity"}
-                      </p>
-                      <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
-                        <span>
-                          {formatNumber(contributor.mergedPrs)} merged · {formatNumber(contributor.openPrs)} open
-                        </span>
-                        <span>
-                          {contributor.lastActivity
-                            ? formatRelativeDate(contributor.lastActivity)
-                            : "—"}
-                        </span>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </aside>
-
-            <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-              {selectedContributorSummary ? (
-                <div className="flex flex-col gap-6">
-                  <div>
-                    <p className="text-xs uppercase tracking-wide text-slate-500">Contributor</p>
-                    <h2 className="mt-1 text-2xl font-semibold text-white">
-                      {selectedContributorSummary.author || "unknown"}
-                    </h2>
-                    <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-slate-400">
-                      <span>
-                        {selectedContributorSummary.totalPrs === 1
-                          ? "1 pull request"
-                          : `${formatNumber(selectedContributorSummary.totalPrs)} pull requests`}
-                      </span>
-                      <span>·</span>
-                      <span>
-                        Last activity {selectedContributorSummary.lastActivity
-                          ? formatRelativeDate(selectedContributorSummary.lastActivity)
-                          : "—"}
-                      </span>
-                      {selectedContributorSummary.recentPrNumber ? (
-                        <>
-                          <span>·</span>
-                          <span>
-                            Recent PR #{selectedContributorSummary.recentPrNumber}
-                          </span>
-                        </>
-                      ) : null}
-                    </div>
-                  </div>
-
-                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    <DetailStat
-                      label="Total PRs"
-                      value={formatNumber(selectedContributorSummary.totalPrs)}
-                    />
-                    <DetailStat
-                      label="Merged PRs"
-                      value={formatNumber(selectedContributorSummary.mergedPrs)}
-                    />
-                    <DetailStat
-                      label="Open PRs"
-                      value={formatNumber(selectedContributorSummary.openPrs)}
-                    />
-                    <DetailStat
-                      label="Total changes"
-                      value={formatLines(selectedContributorSummary.totalChanges)}
-                    />
-                  </div>
-
-                  <div className="grid gap-4 sm:grid-cols-3">
-                    <DetailStat
-                      label="Total additions"
-                      value={formatLines(selectedContributorSummary.totalAdditions)}
-                    />
-                    <DetailStat
-                      label="Total deletions"
-                      value={formatLines(selectedContributorSummary.totalDeletions)}
-                    />
-                    <DetailStat
-                      label="Avg merge time"
-                      value={formatHours(selectedContributorSummary.averageMergeHours)}
-                    />
-                  </div>
-
-                  <div>
-                    <h3 className="text-xs uppercase tracking-wide text-slate-500">Pull requests</h3>
-                    <div className="mt-3 flex flex-col gap-3">
-                      {contributorPrs.map((pr) => (
-                        <a
-                          key={pr.id ?? pr.pr_number}
-                          href={pr.html_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="rounded-xl border border-transparent bg-slate-950/40 px-4 py-3 transition-colors hover:border-slate-700 hover:bg-slate-900"
-                        >
-                          <div className="flex items-center justify-between text-[11px] font-medium uppercase tracking-wide text-slate-500">
-                            <span>PR #{pr.pr_number}</span>
-                            <StateBadge state={pr.state} merged={pr.is_merged} />
-                          </div>
-                          <p className="mt-2 text-sm font-medium text-slate-100">{pr.title}</p>
-                          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
-                            <span>Updated {formatRelativeDate(pr.updated_at)}</span>
-                            <span>{formatNumber(pr.changed_files)} files</span>
-                            <span>{formatLines((pr.additions ?? 0) + (pr.deletions ?? 0))}</span>
-                          </div>
-                        </a>
-                      ))}
-                      {contributorPrs.length === 0 && (
-                        <p className="text-sm text-slate-400">No pull requests recorded for this contributor.</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-sm text-slate-400">Select a contributor to see their details.</p>
-              )}
-            </section>
+        {loading && prs.length === 0 ? (
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-12 text-center text-sm text-slate-400">
+            Loading data for the control tower…
           </div>
         ) : (
-          <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
-            <aside className="flex max-h-[70vh] flex-col gap-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
-              <div className="flex items-center justify-between text-xs uppercase tracking-wide text-slate-500">
-                <span>Pull Requests</span>
-                <span>{prs.length}</span>
+          <>
+            <section className="grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-slate-500">Team delivery health</p>
+                    <h2 className="mt-2 text-2xl font-semibold text-white">
+                      {healthSummary.summary}
+                    </h2>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs uppercase tracking-wide text-slate-500">Composite score</p>
+                    <p className="text-4xl font-semibold text-purple-300">
+                      {healthSummary.healthScore !== null ? healthSummary.healthScore : "—"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+                  <SummaryStat
+                    label="Throughput / week"
+                    value={healthSummary.throughputPerWeek !== null ? `${healthSummary.throughputPerWeek.toFixed(1)}` : "—"}
+                    suffix=" PRs"
+                  />
+                  <SummaryStat
+                    label="Active contributors"
+                    value={healthSummary.activeContributors !== null ? formatInteger(healthSummary.activeContributors) : "—"}
+                  />
+                  <SummaryStat
+                    label="Avg first review"
+                    value={formatHours(healthSummary.avgTimeToFirstReview)}
+                  />
+                  <SummaryStat
+                    label="Avg merge time"
+                    value={formatHours(healthSummary.avgMergeHours)}
+                  />
+                  <SummaryStat
+                    label="Merge rate"
+                    value={formatPercent(healthSummary.mergeRate)}
+                  />
+                  <SummaryStat
+                    label="Small PR share"
+                    value={formatPercent(healthSummary.smallPRShare)}
+                  />
+                </div>
+
+                <div className="mt-6">
+                  <p className="text-xs uppercase tracking-wide text-slate-500">Open PR backlog</p>
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                    {healthSummary.backlogBuckets.map((bucket) => (
+                      <BacklogPill
+                        key={bucket.label}
+                        label={bucket.label}
+                        count={bucket.count}
+                        total={healthSummary.openPrCount}
+                      />
+                    ))}
+                  </div>
+                </div>
               </div>
-              <div className="flex flex-col gap-2 overflow-y-auto">
-                {prs.map((pr) => {
-                  const isSelected = (selectedPr?.pr_number ?? null) === pr.pr_number;
-                  return (
+
+              <div className="grid gap-4">
+                <FocusList
+                  title="Focus this sprint"
+                  items={healthSummary.focusAreas}
+                  emptyLabel="No urgent risks detected"
+                  tone="warning"
+                />
+                <FocusList
+                  title="What’s working"
+                  items={healthSummary.wins}
+                  emptyLabel="We need more data to celebrate wins"
+                  tone="positive"
+                />
+              </div>
+            </section>
+
+            <section>
+              <h2 className="mb-4 text-xl font-semibold text-white">Action queue</h2>
+              {actionGroups.length === 0 ? (
+                <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 text-sm text-slate-400">
+                  No blocking pull requests right now. Keep the flow moving.
+                </div>
+              ) : (
+                <div className="grid gap-4 lg:grid-cols-3">
+                  {actionGroups.map((group) => (
+                    <ActionGroupCard key={group.key} group={group} />
+                  ))}
+                </div>
+              )}
+            </section>
+
+            <section className="grid gap-6 xl:grid-cols-[420px_1fr]">
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+                <p className="text-xs uppercase tracking-wide text-slate-500">Top performers</p>
+                <div className="mt-3 grid gap-3">
+                  {topDevelopers.map((dev) => (
                     <button
-                      key={pr.id ?? pr.pr_number}
+                      key={dev.author}
                       type="button"
-                      onClick={() => setSelectedPrNumber(pr.pr_number)}
-                      className={`rounded-xl border px-4 py-3 text-left transition-colors ${
-                        isSelected
-                          ? "border-slate-500 bg-slate-800"
+                      onClick={() => setSelectedDeveloper(dev.author)}
+                      className={`flex items-center justify-between rounded-xl border px-4 py-3 text-left transition-colors ${
+                        selectedDeveloper === dev.author
+                          ? "border-purple-500 bg-purple-500/10"
                           : "border-transparent bg-slate-950/40 hover:border-slate-700 hover:bg-slate-900"
                       }`}
                     >
-                      <div className="flex items-center justify-between text-[11px] font-medium uppercase tracking-wide text-slate-500">
-                        <span>PR #{pr.pr_number}</span>
-                        <StateBadge state={pr.state} merged={pr.is_merged} />
+                      <div>
+                        <p className="text-sm font-medium text-white">{dev.author}</p>
+                        <p className="text-xs text-slate-500">Overall {dev.overallScore}</p>
                       </div>
-                      <p className="mt-2 line-clamp-2 text-sm font-medium text-slate-100">{pr.title}</p>
-                      <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
-                        <span>{pr.author}</span>
-                        <span>{formatRelativeDate(pr.updated_at)}</span>
-                      </div>
+                      <span className="text-lg font-semibold text-purple-300">#{topDevelopers.indexOf(dev) + 1}</span>
                     </button>
-                  );
-                })}
-              </div>
-            </aside>
-
-            <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-              {selectedPr ? (
-                <div className="flex flex-col gap-6">
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                    <div>
-                      <p className="text-xs uppercase tracking-wide text-slate-500">PR #{selectedPr.pr_number}</p>
-                      <h2 className="mt-1 text-2xl font-semibold text-white">{selectedPr.title}</h2>
-                      <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-slate-400">
-                        <span>by {selectedPr.author}</span>
-                        <span>·</span>
-                        <span>Created {formatRelativeDate(selectedPr.created_at)}</span>
-                        <span>·</span>
-                        <span>Last updated {formatRelativeDate(selectedPr.updated_at)}</span>
-                      </div>
-                    </div>
-                    <a
-                      href={selectedPr.html_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center justify-center rounded-full border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 transition-colors hover:border-slate-500 hover:text-white"
-                    >
-                      View on GitHub
-                    </a>
-                  </div>
-
-                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    <DetailStat label="State" value={selectedPr.is_merged ? "Merged" : capitalise(selectedPr.state)} />
-                    <DetailStat label="Head" value={selectedPr.head_ref} />
-                    <DetailStat label="Base" value={selectedPr.base_ref} />
-                    <DetailStat label="Mergeable" value={selectedPr.mergeable_state ?? "Unknown"} />
-                  </div>
-
-                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    <DetailStat label="Additions" value={formatNumber(selectedPr.additions)} />
-                    <DetailStat label="Deletions" value={formatNumber(selectedPr.deletions)} />
-                    <DetailStat label="Changed files" value={formatNumber(selectedPr.changed_files)} />
-                    <DetailStat label="Commits" value={formatNumber(selectedPr.commits_count)} />
-                  </div>
-
-                  <div className="grid gap-4 sm:grid-cols-3">
-                    <DetailStat label="Comments" value={formatNumber(selectedPr.comments_count)} />
-                    <DetailStat label="Review comments" value={formatNumber(selectedPr.review_comments_count)} />
-                    <DetailStat label="Reviews" value={formatNumber(selectedPr.reviews_count)} />
-                  </div>
-
-                  <div className="grid gap-4 sm:grid-cols-3">
-                    <DetailStat label="Time to merge" value={formatHours(selectedPr.time_to_merge_hours)} />
-                    <DetailStat label="Time to close" value={formatHours(selectedPr.time_to_close_hours)} />
-                    <DetailStat label="First review" value={formatHours(selectedPr.time_to_first_review_hours)} />
-                  </div>
-
-                  {selectedPr.labels?.length ? (
-                    <div>
-                      <h3 className="text-xs uppercase tracking-wide text-slate-500">Labels</h3>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {selectedPr.labels.map((label, index) => {
-                          const name = extractLabelName(label);
-                          if (!name) {
-                            return null;
-                          }
-                          return (
-                            <span
-                              key={`${name}-${index}`}
-                              className="rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-300"
-                            >
-                              {name}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {selectedPr.body ? (
-                    <div>
-                      <h3 className="text-xs uppercase tracking-wide text-slate-500">Description</h3>
-                      <p className="mt-2 whitespace-pre-wrap text-sm text-slate-300 line-clamp-[12]">
-                        {selectedPr.body}
-                      </p>
-                    </div>
-                  ) : null}
+                  ))}
                 </div>
-              ) : (
-                <p className="text-sm text-slate-400">Select a pull request to see the details.</p>
-              )}
+
+                <p className="mt-6 text-xs uppercase tracking-wide text-slate-500">Needs attention</p>
+                <div className="mt-3 space-y-2">
+                  {improvementCandidates.map((dev) => (
+                    <div
+                      key={`${dev.author}-needs-attention`}
+                      className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-950/40 px-4 py-2"
+                    >
+                      <div>
+                        <p className="text-sm font-medium text-white">{dev.author}</p>
+                        <p className="text-xs text-slate-500">Score {dev.overallScore}</p>
+                      </div>
+                      <span className="text-xs text-amber-400">Coaching opportunity</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid gap-6">
+                <div className="grid gap-6 lg:grid-cols-2">
+                  <div className="h-[320px] rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+                    <RadarChartViz
+                      data={developerRadarData}
+                      title={selectedDeveloper ? `${selectedDeveloper} - efficiency profile` : "Efficiency profile"}
+                      name={selectedDeveloper || "Developer"}
+                      color="#8b5cf6"
+                    />
+                  </div>
+                  {selectedDeveloperData && (
+                    <div className="grid gap-4">
+                      <ScoreCard
+                        title="Velocity"
+                        score={selectedDeveloperData.velocityScore.score}
+                        percentile={selectedDeveloperData.velocityScore.percentile}
+                        interpretation={selectedDeveloperData.velocityScore.interpretation}
+                        recommendation={selectedDeveloperData.velocityScore.recommendation}
+                      />
+                      <ScoreCard
+                        title="Quality"
+                        score={selectedDeveloperData.qualityScore.score}
+                        percentile={selectedDeveloperData.qualityScore.percentile}
+                        interpretation={selectedDeveloperData.qualityScore.interpretation}
+                        recommendation={selectedDeveloperData.qualityScore.recommendation}
+                      />
+                    </div>
+                  )}
+                </div>
+                {selectedDeveloperData && (
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    <ScoreCard
+                      title="Collaboration"
+                      score={selectedDeveloperData.collaborationScore.score}
+                      percentile={selectedDeveloperData.collaborationScore.percentile}
+                      interpretation={selectedDeveloperData.collaborationScore.interpretation}
+                      recommendation={selectedDeveloperData.collaborationScore.recommendation}
+                    />
+                    <ScoreCard
+                      title="Consistency"
+                      score={selectedDeveloperData.consistencyScore.score}
+                      percentile={selectedDeveloperData.consistencyScore.percentile}
+                      interpretation={selectedDeveloperData.consistencyScore.interpretation}
+                      recommendation={selectedDeveloperData.consistencyScore.recommendation}
+                    />
+                  </div>
+                )}
+              </div>
             </section>
-          </div>
+
+            <section>
+              <h2 className="mb-4 text-xl font-semibold text-white">Workflow signals</h2>
+              <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
+                <div className="h-[360px]">
+                  <ScatterChartViz
+                    data={sizeVsTimeData}
+                    xLabel="PR size (additions + deletions)"
+                    yLabel="Time to merge"
+                    title="PR size vs merge time"
+                    xUnit=" lines"
+                    yUnit=" h"
+                  />
+                </div>
+                <div className="h-[360px]">
+                  <ScatterChartViz
+                    data={reviewVsMergeData}
+                    xLabel="Time to first review"
+                    yLabel="Time to merge"
+                    title="Review responsiveness"
+                    xUnit=" h"
+                    yUnit=" h"
+                  />
+                </div>
+                <div className="h-[360px]">
+                  <DistributionChart
+                    data={prSizeDistribution}
+                    title="PR size distribution"
+                    yLabel="Number of PRs"
+                  />
+                </div>
+              </div>
+            </section>
+
+            <section className="grid gap-6 xl:grid-cols-2">
+              <div className="h-[420px]">
+                <ComparisonBarChart
+                  data={comparisonSpeedData}
+                  title="Cycle time vs industry"
+                  yLabel="Hours"
+                  valueUnit=""
+                  lowerIsBetter
+                />
+              </div>
+              <div className="h-[420px]">
+                <ComparisonBarChart
+                  data={comparisonQualityData}
+                  title="Quality signals vs industry"
+                  yLabel="Value"
+                />
+              </div>
+            </section>
+
+            {comparisonInsights.length > 0 && (
+              <section>
+                <h2 className="mb-4 text-xl font-semibold text-white">Benchmark insights</h2>
+                <div className="grid gap-4 lg:grid-cols-2">
+                  {comparisonInsights.map((insight) => (
+                    <InsightCard key={insight.metric} insight={insight} />
+                  ))}
+                </div>
+              </section>
+            )}
+          </>
         )}
       </div>
     </main>
   );
 }
 
-function SummaryTile(props: {
+function SummaryStat({
+  label,
+  value,
+  suffix,
+}: {
   label: string;
   value: string;
-  sublabel?: string;
-  accent?: string;
-  className?: string;
+  suffix?: string;
 }) {
-  const { label, value, sublabel, accent, className } = props;
   return (
-    <div
-      className={`rounded-2xl border border-slate-800 bg-slate-900/60 p-5 ${className ?? ""}`.trim()}
-    >
+    <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
       <p className="text-xs uppercase tracking-wide text-slate-500">{label}</p>
-      <p className={`mt-2 text-2xl font-semibold ${accent ?? "text-white"}`}>{value}</p>
-      {sublabel ? <p className="mt-1 text-xs text-slate-500">{sublabel}</p> : null}
+      <p className="mt-2 text-2xl font-semibold text-white">
+        {value}
+        {suffix ?? ""}
+      </p>
     </div>
   );
 }
 
-function DetailStat(props: { label: string; value: string }) {
-  const { label, value } = props;
+function BacklogPill({
+  label,
+  count,
+  total,
+}: {
+  label: string;
+  count: number;
+  total: number;
+}) {
+  const percentage = total > 0 ? Math.round((count / total) * 100) : 0;
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-4">
-      <p className="text-[11px] uppercase tracking-wide text-slate-500">{label}</p>
-      <p className="mt-2 text-lg font-medium text-slate-100">{value}</p>
+    <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
+      <div className="flex items-center justify-between text-xs text-slate-500">
+        <span>{label}</span>
+        <span>{percentage}%</span>
+      </div>
+      <p className="mt-2 text-xl font-semibold text-white">{formatInteger(count)}</p>
     </div>
   );
 }
 
-function ViewModeToggle({ value, onChange }: { value: ViewMode; onChange: (mode: ViewMode) => void }) {
-  const options: ViewMode[] = ["prs", "contributors"];
+function FocusList({
+  title,
+  items,
+  emptyLabel,
+  tone,
+}: {
+  title: string;
+  items: string[];
+  emptyLabel: string;
+  tone: "warning" | "positive";
+}) {
+  const accent = tone === "warning" ? "text-amber-300" : "text-emerald-300";
+  const border = tone === "warning" ? "border-amber-500/40" : "border-emerald-500/40";
+  const background = tone === "warning" ? "bg-amber-500/5" : "bg-emerald-500/5";
+
   return (
-    <div className="flex items-center gap-1 rounded-full border border-slate-800 bg-slate-900/60 p-1">
-      {options.map((mode) => {
-        const isActive = value === mode;
-        const label = mode === "prs" ? "Pull Requests" : "Contributors";
-        return (
-          <button
-            key={mode}
-            type="button"
-            onClick={() => onChange(mode)}
-            className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
-              isActive
-                ? "bg-slate-800 text-white"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            {label}
-          </button>
-        );
-      })}
+    <div className={`rounded-2xl border ${border} ${background} p-5`}>
+      <p className={`text-xs uppercase tracking-wide ${accent}`}>{title}</p>
+      <div className="mt-3 space-y-2 text-sm text-slate-200">
+        {items.length === 0 ? (
+          <p className="text-slate-400">{emptyLabel}</p>
+        ) : (
+          items.map((item, index) => (
+            <div key={`${title}-${index}`} className="flex items-start gap-2">
+              <span className={`${accent}`}>•</span>
+              <p>{item}</p>
+            </div>
+          ))
+        )}
+      </div>
     </div>
   );
 }
 
-function StateBadge({ state, merged }: { state: PullRequest["state"]; merged: boolean }) {
-  if (merged) {
-    return <span className="rounded-full bg-purple-500/10 px-2 py-0.5 text-[10px] font-semibold text-purple-300">Merged</span>;
-  }
-
-  if (state === "open") {
-    return <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-300">Open</span>;
-  }
-
-  return <span className="rounded-full bg-slate-500/10 px-2 py-0.5 text-[10px] font-semibold text-slate-300">Closed</span>;
+function ActionGroupCard({ group }: { group: ActionGroup }) {
+  return (
+    <div className="flex flex-col gap-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-xs uppercase tracking-wide text-slate-500">{group.title}</p>
+          <p className="mt-1 text-sm text-slate-300">{group.description}</p>
+        </div>
+        <span className="rounded-full bg-slate-800 px-3 py-1 text-xs font-semibold text-slate-300">
+          {group.prs.length}
+        </span>
+      </div>
+      <div className="space-y-3">
+        {group.prs.map((pr) => (
+          <PRListItem key={pr.id ?? pr.pr_number} pr={pr} />
+        ))}
+      </div>
+    </div>
+  );
 }
 
-function computeSummary(prs: PullRequest[]): SummaryMetrics {
-  if (prs.length === 0) {
-    return {
-      totalPrs: 0,
-      openPrs: 0,
-      closedPrs: 0,
-      mergedPrs: 0,
-      averageMergeHours: null,
-    };
-  }
-
-  const mergesByAuthor = new Map<string, number>();
-  const changesByAuthor = new Map<string, number>();
-  const mergeDurations: number[] = [];
-  let openPrs = 0;
-  let mergedPrs = 0;
-
-  for (const pr of prs) {
-    if (pr.state === "open") {
-      openPrs += 1;
-    }
-
-    if (pr.is_merged) {
-      mergedPrs += 1;
-      if (pr.author) {
-        mergesByAuthor.set(pr.author, (mergesByAuthor.get(pr.author) ?? 0) + 1);
-      }
-      if (typeof pr.time_to_merge_hours === "number") {
-        mergeDurations.push(pr.time_to_merge_hours);
-      }
-    }
-
-    const author = pr.author || "unknown";
-    const churn = (pr.additions ?? 0) + (pr.deletions ?? 0);
-    changesByAuthor.set(author, (changesByAuthor.get(author) ?? 0) + churn);
-  }
-
-  const topMergerEntry = Array.from(mergesByAuthor.entries()).sort((a, b) => b[1] - a[1])[0];
-  const topChangeEntry = Array.from(changesByAuthor.entries()).sort((a, b) => b[1] - a[1])[0];
-
-  const averageMergeHours = mergeDurations.length
-    ? mergeDurations.reduce((sum, value) => sum + value, 0) / mergeDurations.length
-    : null;
-
-  return {
-    totalPrs: prs.length,
-    openPrs,
-    closedPrs: prs.length - openPrs,
-    mergedPrs,
-    topMerger: topMergerEntry
-      ? { author: topMergerEntry[0], count: topMergerEntry[1] }
-      : undefined,
-    topChangeAuthor: topChangeEntry
-      ? { author: topChangeEntry[0], changes: topChangeEntry[1] }
-      : undefined,
-    averageMergeHours,
-  };
+function PRListItem({ pr }: { pr: PullRequest }) {
+  const size = (pr.additions ?? 0) + (pr.deletions ?? 0);
+  return (
+    <a
+      href={pr.html_url}
+      target="_blank"
+      rel="noreferrer"
+      className="block rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3 transition-colors hover:border-slate-600 hover:bg-slate-900"
+    >
+      <div className="flex items-center justify-between text-[11px] font-medium uppercase tracking-wide text-slate-500">
+        <span>PR #{pr.pr_number}</span>
+        <span>{formatRelativeDate(pr.updated_at)}</span>
+      </div>
+      <p className="mt-2 line-clamp-2 text-sm font-medium text-white">{pr.title}</p>
+      <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-slate-400">
+        <span>{pr.author || "unknown"}</span>
+        <span>•</span>
+        <span>{formatInteger(pr.changed_files)} files</span>
+        <span>•</span>
+        <span>{formatInteger(size)} lines</span>
+      </div>
+    </a>
+  );
 }
 
-function computeContributors(prs: PullRequest[]): ContributorSummary[] {
-  const summaries = new Map<string, ContributorSummary & { mergeDurations: number[] }>();
+function ScoreCard({
+  title,
+  score,
+  percentile,
+  interpretation,
+  recommendation,
+}: {
+  title: string;
+  score: number;
+  percentile: number;
+  interpretation: string;
+  recommendation: string;
+}) {
+  const scoreColor =
+    score >= 80
+      ? "text-emerald-400"
+      : score >= 60
+      ? "text-blue-400"
+      : score >= 40
+      ? "text-amber-400"
+      : "text-red-400";
 
-  for (const pr of prs) {
-    const author = pr.author || "unknown";
-    let entry = summaries.get(author);
-
-    if (!entry) {
-      entry = {
-        author,
-        totalPrs: 0,
-        mergedPrs: 0,
-        openPrs: 0,
-        closedPrs: 0,
-        totalAdditions: 0,
-        totalDeletions: 0,
-        totalChanges: 0,
-        averageMergeHours: null,
-        lastActivity: null,
-        recentPrTitle: null,
-        recentPrNumber: null,
-        mergeDurations: [],
-      };
-      summaries.set(author, entry);
-    }
-
-    entry.totalPrs += 1;
-    if (pr.state === "open") {
-      entry.openPrs += 1;
-    } else {
-      entry.closedPrs += 1;
-    }
-    if (pr.is_merged) {
-      entry.mergedPrs += 1;
-      if (typeof pr.time_to_merge_hours === "number") {
-        entry.mergeDurations.push(pr.time_to_merge_hours);
-      }
-    }
-
-    const additions = pr.additions ?? 0;
-    const deletions = pr.deletions ?? 0;
-    entry.totalAdditions += additions;
-    entry.totalDeletions += deletions;
-    entry.totalChanges += additions + deletions;
-
-    if (!entry.lastActivity || new Date(pr.updated_at) > new Date(entry.lastActivity)) {
-      entry.lastActivity = pr.updated_at;
-      entry.recentPrTitle = pr.title;
-      entry.recentPrNumber = pr.pr_number;
-    }
-  }
-
-  return Array.from(summaries.values())
-    .map((entry) => {
-      const averageMergeHours = entry.mergeDurations.length
-        ? entry.mergeDurations.reduce((sum, value) => sum + value, 0) / entry.mergeDurations.length
-        : null;
-
-      return {
-        author: entry.author,
-        totalPrs: entry.totalPrs,
-        mergedPrs: entry.mergedPrs,
-        openPrs: entry.openPrs,
-        closedPrs: entry.closedPrs,
-        totalAdditions: entry.totalAdditions,
-        totalDeletions: entry.totalDeletions,
-        totalChanges: entry.totalChanges,
-        averageMergeHours,
-        lastActivity: entry.lastActivity,
-        recentPrTitle: entry.recentPrTitle,
-        recentPrNumber: entry.recentPrNumber,
-      };
-    })
-    .sort((a, b) => {
-      if (b.totalPrs !== a.totalPrs) {
-        return b.totalPrs - a.totalPrs;
-      }
-      return b.totalChanges - a.totalChanges;
-    });
+  return (
+    <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-medium text-white">{title}</h3>
+        <div className="text-right">
+          <p className={`text-2xl font-semibold ${scoreColor}`}>{Math.round(score)}</p>
+          <p className="text-xs text-slate-500">{percentile}th percentile</p>
+        </div>
+      </div>
+      <p className="mt-3 text-sm text-slate-300">{interpretation}</p>
+      <div className="mt-3 rounded-lg bg-slate-950/40 p-3">
+        <p className="text-xs font-medium text-slate-400">Recommendation</p>
+        <p className="mt-1 text-xs text-slate-300">{recommendation}</p>
+      </div>
+    </div>
+  );
 }
 
-function formatHours(hours: number | null): string {
-  if (typeof hours !== "number" || Number.isNaN(hours)) {
-    return "—";
-  }
-
-  const totalMinutes = Math.max(0, Math.round(hours * 60));
-  const days = Math.floor(totalMinutes / (60 * 24));
-  const remainderAfterDays = totalMinutes - days * 60 * 24;
-  const hrs = Math.floor(remainderAfterDays / 60);
-  const minutes = remainderAfterDays - hrs * 60;
-
-  const parts: string[] = [];
-  if (days) {
-    parts.push(`${days}d`);
-  }
-  if (hrs) {
-    parts.push(`${hrs}h`);
-  }
-  if (!days && minutes && parts.length < 2) {
-    parts.push(`${minutes}m`);
-  }
-
-  if (parts.length === 0) {
-    return `${minutes}m`;
-  }
-
-  return parts.join(" ");
-}
-
-function formatDate(iso: string): string {
-  if (!iso) {
-    return "—";
-  }
-
-  const parsed = new Date(iso);
-  if (Number.isNaN(parsed.getTime())) {
-    return "—";
-  }
-
-  return parsed.toLocaleString();
-}
-
-function formatRelativeDate(iso: string): string {
-  if (!iso) {
-    return "—";
-  }
-
-  const parsed = new Date(iso);
-  if (Number.isNaN(parsed.getTime())) {
-    return "—";
-  }
-
-  const now = new Date();
-  const diffMs = now.getTime() - parsed.getTime();
-  const diffMinutes = Math.round(diffMs / (1000 * 60));
-
-  if (diffMinutes < 1) {
-    return "just now";
-  }
-  if (diffMinutes < 60) {
-    return `${diffMinutes}m ago`;
-  }
-  const diffHours = Math.round(diffMinutes / 60);
-  if (diffHours < 24) {
-    return `${diffHours}h ago`;
-  }
-  const diffDays = Math.round(diffHours / 24);
-  if (diffDays < 30) {
-    return `${diffDays}d ago`;
-  }
-  return parsed.toLocaleDateString();
-}
-
-function formatNumber(value: number | null | undefined): string {
-  if (typeof value !== "number" || Number.isNaN(value)) {
-    return "—";
-  }
-  return numberFormatter.format(value);
-}
-
-function formatLines(value: number | null | undefined): string {
-  const formatted = formatNumber(value);
-  if (formatted === "—") {
-    return formatted;
-  }
-  return `${formatted} lines`;
-}
-
-function extractLabelName(label: unknown): string | null {
-  if (!label || typeof label !== "object") {
-    return null;
-  }
-  if ("name" in label && typeof (label as { name?: unknown }).name === "string") {
-    return (label as { name?: string }).name ?? null;
-  }
-  return null;
-}
-
-function capitalise(value: string): string {
-  if (!value.length) {
-    return value;
-  }
-  return value[0].toUpperCase() + value.slice(1);
+function InsightCard({ insight }: { insight: ComparisonInsight }) {
+  return (
+    <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+      <h3 className="text-sm font-medium text-white">{insight.metric}</h3>
+      <div className="mt-3 grid grid-cols-3 gap-3 text-xs">
+        <div>
+          <p className="text-slate-500">Your value</p>
+          <p className="mt-1 font-semibold text-white">{insight.yourValue.toFixed(1)}</p>
+        </div>
+        <div>
+          <p className="text-slate-500">Industry median</p>
+          <p className="mt-1 font-semibold text-white">{insight.industryMedian.toFixed(1)}</p>
+        </div>
+        <div>
+          <p className="text-slate-500">Percentile</p>
+          <p className="mt-1 font-semibold text-purple-400">{insight.percentile}th</p>
+        </div>
+      </div>
+      <p className="mt-3 text-sm text-slate-300">{insight.interpretation}</p>
+    </div>
+  );
 }
 
 function RepositorySelector({
@@ -911,7 +793,7 @@ function RepositorySelector({
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const selectedRepo = repositories.find(
-    (r) => r.owner === selectedOwner && r.name === selectedName
+    (repo) => repo.owner === selectedOwner && repo.name === selectedName
   );
 
   if (repositories.length === 0) {
@@ -926,7 +808,9 @@ function RepositorySelector({
         className="flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900/60 px-4 py-2 text-sm font-medium text-slate-200 transition-colors hover:border-slate-500 hover:text-white"
       >
         <span>
-          {selectedRepo ? selectedRepo.fullName : `${selectedOwner}/${selectedName}`}
+          {selectedRepo
+            ? selectedRepo.fullName
+            : `${selectedOwner}/${selectedName}`}
         </span>
         <svg
           className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
@@ -940,18 +824,18 @@ function RepositorySelector({
 
       {isOpen && (
         <>
-          {/* Backdrop */}
           <div
             className="fixed inset-0 z-10"
             onClick={() => setIsOpen(false)}
           />
-
-          {/* Dropdown */}
           <div className="absolute right-0 z-20 mt-2 w-80 rounded-xl border border-slate-700 bg-slate-900 shadow-xl">
             <div className="max-h-96 overflow-y-auto p-2">
               {repositories.map((repo) => {
-                const isSelected = repo.owner === selectedOwner && repo.name === selectedName;
-                const isDefault = repo.owner === DEFAULT_REPO.owner && repo.name === DEFAULT_REPO.name;
+                const isSelected =
+                  repo.owner === selectedOwner && repo.name === selectedName;
+                const isDefault =
+                  repo.owner === DEFAULT_REPO.owner &&
+                  repo.name === DEFAULT_REPO.name;
 
                 return (
                   <button
@@ -972,25 +856,33 @@ function RepositorySelector({
                         {repo.fullName}
                         {isDefault && (
                           <span className="ml-2 rounded-full bg-purple-500/20 px-2 py-0.5 text-xs text-purple-300">
-                            Your Team
+                            Your team
                           </span>
                         )}
                       </span>
                       {isSelected && (
-                        <svg className="h-4 w-4 text-purple-400" fill="currentColor" viewBox="0 0 20 20">
+                        <svg
+                          className="h-4 w-4 text-purple-400"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
                           <path
                             fillRule="evenodd"
-                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
                             clipRule="evenodd"
                           />
                         </svg>
                       )}
                     </div>
                     {repo.description && (
-                      <p className="mt-1 text-xs text-slate-500 line-clamp-1">{repo.description}</p>
+                      <p className="mt-1 text-xs text-slate-500 line-clamp-1">
+                        {repo.description}
+                      </p>
                     )}
                     <div className="mt-1 flex items-center gap-3 text-xs text-slate-500">
-                      {repo.prCount !== undefined && <span>{formatNumber(repo.prCount)} PRs</span>}
+                      {repo.prCount !== undefined && (
+                        <span>{formatInteger(repo.prCount)} PRs</span>
+                      )}
                       {repo.contributorCount !== undefined && (
                         <span>{repo.contributorCount} contributors</span>
                       )}
@@ -1004,4 +896,284 @@ function RepositorySelector({
       )}
     </div>
   );
+}
+
+function computeTeamHealth(
+  repoMetrics: RepositoryMetrics | undefined,
+  prs: PullRequest[]
+): HealthSummary {
+  const openPrs = prs.filter((pr) => pr.state === "open");
+  const backlogBuckets = bucketOpenPrs(openPrs);
+
+  if (!repoMetrics) {
+    return {
+      healthScore: null,
+      summary: "Waiting for metrics — trigger a sync",
+      throughputPerWeek: null,
+      mergeRate: null,
+      avgMergeHours: null,
+      avgTimeToFirstReview: null,
+      avgReviewsPerPR: null,
+      activeContributors: null,
+      smallPRShare: null,
+      largePRShare: null,
+      openPrCount: openPrs.length,
+      stalePrCount: openPrs.filter((pr) => hoursSince(pr.updated_at) > 72).length,
+      backlogBuckets,
+      wins: [],
+      focusAreas: [],
+    };
+  }
+
+  const throughputPerWeek = repoMetrics.data_span_days
+    ? repoMetrics.total_prs /
+      Math.max(repoMetrics.data_span_days / 7, 1)
+    : null;
+  const mergeRate = repoMetrics.merge_rate_percent ?? null;
+  const avgMergeHours = repoMetrics.avg_merge_hours ?? null;
+  const avgTimeToFirstReview =
+    repoMetrics.avg_time_to_first_review_hours ?? null;
+  const avgReviewsPerPR = repoMetrics.avg_reviews_per_pr ?? null;
+  const activeContributors = repoMetrics.active_contributors ?? null;
+  const smallPRShare = repoMetrics.total_prs
+    ? (repoMetrics.small_prs / repoMetrics.total_prs) * 100
+    : null;
+  const largePRShare = repoMetrics.total_prs
+    ? (repoMetrics.large_prs / repoMetrics.total_prs) * 100
+    : null;
+
+  const throughputScore =
+    throughputPerWeek !== null
+      ? Math.min(100, (throughputPerWeek / 20) * 100)
+      : 60;
+  const mergeRateScore =
+    mergeRate !== null ? Math.min(100, (mergeRate / 90) * 100) : 60;
+  const mergeTimeScore =
+    avgMergeHours !== null
+      ? Math.max(0, 100 - (avgMergeHours / 48) * 100)
+      : 60;
+  const reviewTimeScore =
+    avgTimeToFirstReview !== null
+      ? Math.max(0, 100 - (avgTimeToFirstReview / 12) * 100)
+      : 60;
+
+  const healthScore = Math.round(
+    mergeRateScore * 0.3 +
+      mergeTimeScore * 0.3 +
+      reviewTimeScore * 0.2 +
+      throughputScore * 0.2
+  );
+
+  let summary = "";
+  if (healthScore >= 80) {
+    summary = "Delivery is healthy — keep the cadence";
+  } else if (healthScore >= 65) {
+    summary = "Steady delivery, but cycle times can tighten";
+  } else {
+    summary = "Delivery risk is rising — focus on reviews & merges";
+  }
+
+  const wins: string[] = [];
+  const focusAreas: string[] = [];
+
+  if (mergeRate !== null && mergeRate >= 85) {
+    wins.push(`Merge rate is strong at ${mergeRate.toFixed(1)}%.`);
+  }
+  if (avgTimeToFirstReview !== null && avgTimeToFirstReview <= 12) {
+    wins.push(`First reviews land in ${avgTimeToFirstReview.toFixed(1)}h on average.`);
+  }
+  if (smallPRShare !== null && smallPRShare >= 60) {
+    wins.push(`${Math.round(smallPRShare)}% of PRs are small and easy to review.`);
+  }
+  if (throughputPerWeek !== null && throughputPerWeek >= 15) {
+    wins.push(`Team ships roughly ${throughputPerWeek.toFixed(1)} PRs per week.`);
+  }
+
+  const stalePrCount = openPrs.filter((pr) => hoursSince(pr.updated_at) > 72).length;
+  if (avgMergeHours !== null && avgMergeHours > 48) {
+    focusAreas.push(`Avg merge time is ${avgMergeHours.toFixed(1)}h — target < 48h.`);
+  }
+  if (avgTimeToFirstReview !== null && avgTimeToFirstReview > 16) {
+    focusAreas.push(`First review waits ${avgTimeToFirstReview.toFixed(1)}h — aim for < 12h.`);
+  }
+  if (stalePrCount > 0) {
+    focusAreas.push(`${stalePrCount} open PR${stalePrCount === 1 ? "" : "s"} idle > 3 days.`);
+  }
+  if (largePRShare !== null && largePRShare > 20) {
+    focusAreas.push(`${Math.round(largePRShare)}% of PRs are large — encourage smaller chunks.`);
+  }
+
+  return {
+    healthScore,
+    summary,
+    throughputPerWeek,
+    mergeRate,
+    avgMergeHours,
+    avgTimeToFirstReview,
+    avgReviewsPerPR,
+    activeContributors,
+    smallPRShare,
+    largePRShare,
+    openPrCount: openPrs.length,
+    stalePrCount,
+    backlogBuckets,
+    wins,
+    focusAreas,
+  };
+}
+
+function buildActionGroups(prs: PullRequest[]): ActionGroup[] {
+  const openPrs = prs.filter((pr) => pr.state === "open");
+  const stale = openPrs
+    .filter((pr) => hoursSince(pr.updated_at) > 72)
+    .sort((a, b) => new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime())
+    .slice(0, 5);
+  const waitingForReview = openPrs
+    .filter(
+      (pr) =>
+        (pr.reviews_count ?? 0) === 0 &&
+        (pr.review_comments_count ?? 0) === 0 &&
+        hoursSince(pr.created_at) > 24
+    )
+    .slice(0, 5);
+  const large = openPrs
+    .filter((pr) => (pr.additions ?? 0) + (pr.deletions ?? 0) > 1200)
+    .sort(
+      (a, b) =>
+        (b.additions ?? 0) + (b.deletions ?? 0) -
+        ((a.additions ?? 0) + (a.deletions ?? 0))
+    )
+    .slice(0, 5);
+
+  const groups: ActionGroup[] = [];
+
+  if (stale.length) {
+    groups.push({
+      key: "stale",
+      title: "Stuck > 3 days",
+      description: "These PRs haven't seen movement in 72h+. Help them land.",
+      prs: stale,
+    });
+  }
+  if (waitingForReview.length) {
+    groups.push({
+      key: "review",
+      title: "Waiting for first review",
+      description: "No review engagement yet. Rally reviewers.",
+      prs: waitingForReview,
+    });
+  }
+  if (large.length) {
+    groups.push({
+      key: "large",
+      title: "High-risk large PRs",
+      description: "Break down or swarm review to reduce risk.",
+      prs: large,
+    });
+  }
+
+  return groups;
+}
+
+function bucketOpenPrs(prs: PullRequest[]): { label: string; count: number }[] {
+  const buckets = [
+    { label: "≤24h", count: 0 },
+    { label: "1-3d", count: 0 },
+    { label: "3-7d", count: 0 },
+    { label: ">7d", count: 0 },
+  ];
+
+  const now = Date.now();
+
+  prs.forEach((pr) => {
+    const created = new Date(pr.created_at).getTime();
+    if (Number.isNaN(created)) {
+      buckets[0].count += 1;
+      return;
+    }
+    const diffHours = (now - created) / (1000 * 60 * 60);
+
+    if (diffHours <= 24) buckets[0].count += 1;
+    else if (diffHours <= 72) buckets[1].count += 1;
+    else if (diffHours <= 168) buckets[2].count += 1;
+    else buckets[3].count += 1;
+  });
+
+  return buckets;
+}
+
+function computeLatestSync(prs: PullRequest[]): string | null {
+  if (!prs.length) return null;
+  return prs.reduce<string | null>((latest, pr) => {
+    if (!pr.synced_at) return latest;
+    if (!latest) return pr.synced_at;
+    return new Date(pr.synced_at) > new Date(latest) ? pr.synced_at : latest;
+  }, null);
+}
+
+function hoursSince(iso: string | null): number {
+  if (!iso) return Number.POSITIVE_INFINITY;
+  const timestamp = new Date(iso).getTime();
+  if (Number.isNaN(timestamp)) return Number.POSITIVE_INFINITY;
+  return (Date.now() - timestamp) / (1000 * 60 * 60);
+}
+
+function median(values: number[]): number {
+  if (!values.length) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0
+    ? (sorted[mid - 1] + sorted[mid]) / 2
+    : sorted[mid];
+}
+
+function formatPercent(value: number | null): string {
+  if (value === null || Number.isNaN(value)) return "—";
+  return `${value.toFixed(1)}%`;
+}
+
+function formatInteger(value: number | null | undefined): string {
+  if (value === null || value === undefined || Number.isNaN(value)) return "—";
+  return new Intl.NumberFormat("en-US").format(value);
+}
+
+function formatHours(hours: number | null): string {
+  if (hours === null || Number.isNaN(hours)) {
+    return "—";
+  }
+  if (hours < 24) {
+    return `${hours.toFixed(1)}h`;
+  }
+  const days = Math.floor(hours / 24);
+  const remainderHours = Math.round(hours - days * 24);
+  if (remainderHours === 0) {
+    return `${days}d`;
+  }
+  return `${days}d ${remainderHours}h`;
+}
+
+function formatDateTime(iso: string): string {
+  const parsed = new Date(iso);
+  if (Number.isNaN(parsed.getTime())) return "—";
+  return parsed.toLocaleString();
+}
+
+function formatRelativeDate(iso: string): string {
+  if (!iso) return "—";
+  const parsed = new Date(iso);
+  if (Number.isNaN(parsed.getTime())) return "—";
+
+  const diffMs = Date.now() - parsed.getTime();
+  const diffMinutes = Math.round(diffMs / (1000 * 60));
+
+  if (diffMinutes < 1) return "just now";
+  if (diffMinutes < 60) return `${diffMinutes}m ago`;
+
+  const diffHours = Math.round(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+
+  const diffDays = Math.round(diffHours / 24);
+  if (diffDays < 30) return `${diffDays}d ago`;
+
+  return parsed.toLocaleDateString();
 }
