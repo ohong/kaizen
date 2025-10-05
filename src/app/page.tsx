@@ -61,6 +61,58 @@ interface ActionGroup {
   prs: PullRequest[];
 }
 
+// Dummy emails + one real email (mirrors /feedback page)
+const AVAILABLE_EMAILS = [
+  "javokhir@raisedash.com",
+  "alice.anderson@example.com",
+  "bob.builder@example.com",
+  "charlie.chen@example.com",
+  "diana.davis@example.com",
+  "evan.edwards@example.com",
+  "fiona.fisher@example.com",
+  "george.garcia@example.com",
+  "hannah.harris@example.com",
+  "ian.irwin@example.com",
+  "julia.johnson@example.com",
+  "kevin.kim@example.com",
+  "laura.lopez@example.com",
+  "michael.martinez@example.com",
+  "nina.nguyen@example.com",
+  "oliver.owen@example.com",
+  "patricia.patel@example.com",
+  "quinn.quinn@example.com",
+  "rachel.rodriguez@example.com",
+  "samuel.smith@example.com",
+  "tina.taylor@example.com",
+];
+
+interface ErrorsSummary {
+  total: number;
+  byService: { category: string; value: number }[];
+  byEnv: { category: string; value: number }[];
+  timeline: { date: string; count: number }[];
+  recent: DatadogError[];
+  topMessages: { message: string; count: number }[];
+}
+
+interface ReportPayload {
+  repository: { owner: string; name: string };
+  latestSync: string | null;
+  health: HealthSummary;
+  actionQueue: { key: string; title: string; count: number }[];
+  developers: {
+    top: { author: string; overallScore: number }[];
+    needsAttention: { author: string; overallScore: number }[];
+  };
+  benchmarks: {
+    speed: { name: string; yourTeam: number; industryMedian: number; topPerformer?: number }[];
+    quality: { name: string; yourTeam: number; industryMedian: number; topPerformer?: number }[];
+  };
+  distributions: { prSizeDistribution: { category: string; value: number; color: string }[] };
+  chartsSummary: { sizeVsTimePoints: number; reviewVsMergePoints: number };
+  errors: ErrorsSummary | null;
+}
+
 export default function ManagerDashboard() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -72,6 +124,13 @@ export default function ManagerDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedDeveloper, setSelectedDeveloper] = useState<string | null>(null);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [selectedEmails, setSelectedEmails] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sendingReport, setSendingReport] = useState(false);
+  const [reportResult, setReportResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [errorsSummary, setErrorsSummary] = useState<ErrorsSummary | null>(null);
+  const [errorsSummaryLoading, setErrorsSummaryLoading] = useState(false);
 
   const selectedRepository = useMemo(() => parseRepositoryFromUrl(searchParams), [searchParams]);
 
@@ -271,6 +330,213 @@ export default function ManagerDashboard() {
     ];
   }, [repoMetrics, benchmarkRepos]);
 
+  const filteredEmails = useMemo(
+    () => AVAILABLE_EMAILS.filter((email) => email.toLowerCase().includes(searchQuery.toLowerCase())),
+    [searchQuery]
+  );
+
+  const toggleEmail = useCallback((email: string) => {
+    setSelectedEmails((prev) => (prev.includes(email) ? prev.filter((e) => e !== email) : [...prev, email]));
+  }, []);
+
+  const selectAll = useCallback(() => {
+    setSelectedEmails(filteredEmails);
+  }, [filteredEmails]);
+
+  const clearAll = useCallback(() => {
+    setSelectedEmails([]);
+  }, []);
+
+  const transformService = useCallback((originalService: string | null, errorId: number): string => {
+    if (!originalService || originalService === "hosting") {
+      const services = [
+        "nextjs-frontend",
+        "api-gateway",
+        "auth-service",
+        "database",
+        "cdn",
+        "monitoring",
+        "queue-worker",
+        "file-storage",
+        "search-service",
+        "notification-service",
+        "payment-processor",
+        "analytics-service",
+        "cache-redis",
+        "email-service",
+        "webhook-handler",
+      ];
+      return services[errorId % services.length];
+    }
+    return originalService;
+  }, []);
+
+  const loadErrorsSummary = useCallback(async (): Promise<ErrorsSummary | null> => {
+    try {
+      setErrorsSummaryLoading(true);
+      setErrorsSummary(null);
+
+      // Resolve repository id
+      const { data: repoRows, error: repoError } = await supabase
+        .from("repositories")
+        .select("id")
+        .eq("owner", selectedRepository.owner)
+        .eq("name", selectedRepository.name)
+        .limit(1);
+      if (repoError) throw repoError;
+      const repoId = repoRows && repoRows.length > 0 ? (repoRows[0] as any).id as string : null;
+      if (!repoId) {
+        setErrorsSummary({ total: 0, byService: [], byEnv: [], timeline: [], recent: [], topMessages: [] });
+        return { total: 0, byService: [], byEnv: [], timeline: [], recent: [], topMessages: [] };
+      }
+
+      const since = new Date();
+      since.setDate(since.getDate() - 7);
+      const { data: errorRows, error: errorsErr } = await supabase
+        .from("datadog_errors")
+        .select("*")
+        .eq("repository_id", repoId)
+        .gte("occurred_at", since.toISOString())
+        .order("occurred_at", { ascending: false })
+        .limit(500);
+      if (errorsErr) throw errorsErr;
+      const errors: DatadogError[] = (errorRows as any) || [];
+
+      if (!errors.length) {
+        const empty: ErrorsSummary = { total: 0, byService: [], byEnv: [], timeline: [], recent: [], topMessages: [] };
+        setErrorsSummary(empty);
+        return empty;
+      }
+
+      const byServiceMap = new Map<string, number>();
+      const byEnvMap = new Map<string, number>();
+      const byDateMap = new Map<string, number>();
+      const byMessageMap = new Map<string, number>();
+
+      const normalizeHour = (iso: string) => {
+        const date = new Date(iso);
+        return date.toISOString().slice(0, 13) + ":00:00Z";
+      };
+      const normalizeMessage = (msg: string | null) => (msg ? msg.trim() : "<no message>");
+
+      for (const e of errors) {
+        const service = transformService(e.service, (e as any).id as number);
+        const env = (e as any).env || "unknown";
+        const hour = normalizeHour((e as any).occurred_at as string);
+        const message = normalizeMessage((e as any).message as string | null);
+        byServiceMap.set(service, (byServiceMap.get(service) || 0) + 1);
+        byEnvMap.set(env, (byEnvMap.get(env) || 0) + 1);
+        byDateMap.set(hour, (byDateMap.get(hour) || 0) + 1);
+        byMessageMap.set(message, (byMessageMap.get(message) || 0) + 1);
+      }
+
+      // Build continuous hourly timeline for last 7 days
+      const hours: string[] = [];
+      const start = new Date();
+      start.setDate(start.getDate() - 7);
+      start.setHours(0, 0, 0, 0);
+      for (let i = 0; i < 7 * 24; i++) {
+        const d = new Date(start);
+        d.setHours(start.getHours() + i);
+        hours.push(d.toISOString().slice(0, 13) + ":00:00Z");
+      }
+      const timeline = hours.map((h) => ({
+        date: new Date(h).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", hour12: true }),
+        count: byDateMap.get(h) || 0,
+      }));
+
+      const mapToSortedArray = (m: Map<string, number>) =>
+        Array.from(m.entries())
+          .map(([category, value]) => ({ category, value }))
+          .sort((a, b) => b.value - a.value);
+
+      const byService = mapToSortedArray(byServiceMap).slice(0, 10);
+      const byEnv = mapToSortedArray(byEnvMap).slice(0, 10);
+      const topMessages = Array.from(byMessageMap.entries())
+        .map(([message, count]) => ({ message, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5);
+      // Deduplicate recent by normalized message + service + status to avoid flooding
+      const seenRecent = new Set<string>();
+      const recent: DatadogError[] = [];
+      for (const e of errors) {
+        if (recent.length >= 12) break;
+        const key = `${normalizeMessage((e as any).message as string | null)}|${transformService(e.service, (e as any).id as number)}|${(e as any).status ?? ""}`;
+        if (seenRecent.has(key)) continue;
+        seenRecent.add(key);
+        recent.push(e as DatadogError);
+      }
+
+      const summary: ErrorsSummary = { total: errors.length, byService, byEnv, timeline, recent, topMessages };
+      setErrorsSummary(summary);
+      return summary;
+    } catch (e) {
+      setErrorsSummary(null);
+      return null;
+    } finally {
+      setErrorsSummaryLoading(false);
+    }
+  }, [selectedRepository, transformService]);
+
+  const handleOpenReportModal = useCallback(() => {
+    setReportResult(null);
+    setShowReportModal(true);
+    // best-effort prefetch of errors summary
+    void loadErrorsSummary();
+  }, [loadErrorsSummary]);
+
+  const buildReportPayload = useCallback(async (): Promise<ReportPayload> => {
+    const errors = errorsSummary ?? (await loadErrorsSummary());
+    return {
+      repository: { owner: selectedRepository.owner, name: selectedRepository.name },
+      latestSync,
+      health: healthSummary,
+      actionQueue: actionGroups.map((g) => ({ key: g.key, title: g.title, count: g.prs.length })),
+      developers: {
+        top: topDevelopers.slice(0, 3).map((d) => ({ author: d.author, overallScore: d.overallScore })),
+        needsAttention: improvementCandidates.slice(0, 3).map((d) => ({ author: d.author, overallScore: d.overallScore })),
+      },
+      benchmarks: {
+        speed: comparisonSpeedData,
+        quality: comparisonQualityData,
+      },
+      distributions: { prSizeDistribution },
+      chartsSummary: { sizeVsTimePoints: sizeVsTimeData.length, reviewVsMergePoints: reviewVsMergeData.length },
+      errors: errors,
+    };
+  }, [errorsSummary, loadErrorsSummary, selectedRepository, latestSync, healthSummary, actionGroups, topDevelopers, improvementCandidates, comparisonSpeedData, comparisonQualityData, prSizeDistribution, sizeVsTimeData, reviewVsMergeData]);
+
+  const handleSendReport = useCallback(async () => {
+    if (selectedEmails.length === 0) {
+      setReportResult({ success: false, message: "Please select at least one recipient" });
+      return;
+    }
+    setSendingReport(true);
+    setReportResult(null);
+    try {
+      const payload = await buildReportPayload();
+      const res = await fetch("/api/send-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recipients: selectedEmails, payload }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setReportResult({ success: false, message: data?.error || "Failed to send report" });
+        return;
+      }
+      setReportResult({ success: true, message: data?.message || "Report sent" });
+      setTimeout(() => {
+        setShowReportModal(false);
+        setSelectedEmails([]);
+      }, 1500);
+    } catch (e) {
+      setReportResult({ success: false, message: "Failed to send report" });
+    } finally {
+      setSendingReport(false);
+    }
+  }, [selectedEmails, buildReportPayload]);
+
   const handleRepositoryChange = useCallback(
     (owner: string, name: string) => {
       router.push(buildRepositoryUrl(owner, name));
@@ -327,6 +593,7 @@ export default function ManagerDashboard() {
               </button>
               <button
                 type="button"
+                onClick={handleOpenReportModal}
                 className="border border-[var(--hud-warning)] bg-[var(--hud-bg-elevated)] px-4 py-2 font-mono text-xs uppercase tracking-wider text-[var(--hud-warning)] transition-all duration-200 hover:bg-[var(--hud-warning)] hover:text-[var(--hud-bg)]"
               >
                 Send Report
@@ -339,14 +606,93 @@ export default function ManagerDashboard() {
                 Feedback
               </button>
             </div>
-          </header>
+            <div className="hidden h-8 w-px bg-[var(--hud-border)] sm:block" />
+            <RepositorySelector
+              repositories={repositories}
+              selectedOwner={selectedRepository.owner}
+              selectedName={selectedRepository.name}
+              onChange={handleRepositoryChange}
+            />
+            <button
+              type="button"
+              onClick={loadData}
+              className="hud-glow border border-[var(--hud-accent)] bg-[var(--hud-bg-elevated)] px-4 py-2 font-mono text-xs uppercase tracking-wider text-[var(--hud-accent)] transition-all duration-200 hover:bg-[var(--hud-accent)] hover:text-[var(--hud-bg)] disabled:cursor-not-allowed disabled:opacity-40"
+              disabled={loading}
+            >
+              {loading ? "Syncing…" : "Sync Data"}
+            </button>
+            <button
+              type="button"
+              onClick={handleOpenReportModal}
+              className="border border-[var(--hud-warning)] bg-[var(--hud-bg-elevated)] px-4 py-2 font-mono text-xs uppercase tracking-wider text-[var(--hud-warning)] transition-all duration-200 hover:bg-[var(--hud-warning)] hover:text-[var(--hud-bg)]"
+            >
+              Send Report
+            </button>
+            <button
+              type="button"
+              onClick={() => router.push("/feedback")}
+              className="border border-[var(--hud-accent)] bg-[var(--hud-bg-elevated)] px-4 py-2 font-mono text-xs uppercase tracking-wider text-[var(--hud-accent)] transition-all duration-200 hover:bg-[var(--hud-accent)] hover:text-[var(--hud-bg)]"
+            >
+              Feedback
+            </button>
+          </div>
+        </header>
 
-          <main className="mx-auto flex max-w-[1600px] flex-col gap-10 px-8 py-12">
-            <section className="hud-panel hud-corner hud-scanline p-8">
-              <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-                <div className="space-y-4">
-                  <div className="font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
-                    ◢ Control Center
+      <main className="mx-auto flex max-w-[1600px] flex-col gap-10 px-8 py-12">
+        <section className="hud-panel hud-corner hud-scanline p-8">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="space-y-4">
+              <div className="font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
+                ◢ Control Center
+              </div>
+              <h1 className="text-4xl font-semibold text-[var(--hud-text-bright)]">
+                Delivery Control Tower
+              </h1>
+              <p className="max-w-3xl text-sm text-[var(--hud-text-dim)]">
+                One view of how quickly we ship, where work is stalling, and which teammates need support. Built for the engineering manager to steer the Supabase platform team.
+              </p>
+            </div>
+            <div className="min-w-[220px] rounded-lg border border-[var(--hud-border)] bg-[var(--hud-bg)] px-4 py-3 text-right">
+              <p className="font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
+                Viewing Repository
+              </p>
+              <p className="mt-2 font-mono text-sm text-[var(--hud-text-bright)]">
+                {selectedRepository.owner}/{selectedRepository.name}
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {error && (
+          <div className="hud-panel hud-corner border border-[var(--hud-danger)]/40 bg-[var(--hud-danger)]/15 px-4 py-3 text-sm text-[var(--hud-text-bright)]">
+            {error}
+          </div>
+        )}
+
+        {loading && prs.length === 0 ? (
+          <div className="hud-panel hud-corner p-12 text-center text-sm text-[var(--hud-text-dim)]">
+            Loading data for the control tower…
+          </div>
+        ) : (
+          <>
+            <section className="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+              <div className="hud-panel hud-corner p-6">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <p className="font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
+                      Team delivery health
+                    </p>
+                    <h2 className="mt-2 text-2xl font-semibold text-[var(--hud-text-bright)]">
+                      {healthSummary.summary}
+                    </h2>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
+                      Composite score
+                    </p>
+                    <p className="text-4xl font-semibold text-[var(--hud-accent)]">
+                      {healthSummary.healthScore !== null ? healthSummary.healthScore : "—"}
+                    </p>
                   </div>
                   <h1 className="text-4xl font-semibold text-[var(--hud-text-bright)]">
                     Delivery Control Tower
@@ -673,10 +1019,148 @@ export default function ManagerDashboard() {
                 </section>
               </>
             )}
-          </main>
+
+            <section>
+              <DatadogErrorsSection owner={selectedRepository.owner} name={selectedRepository.name} />
+            </section>
+          </>
+        )}
+      </main>
+      {showReportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setShowReportModal(false)} />
+          <div className="relative z-10 w-full max-w-3xl hud-panel hud-corner p-6">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-xl font-semibold text-[var(--hud-text-bright)]">Send Delivery Report</h3>
+              <button
+                type="button"
+                onClick={() => setShowReportModal(false)}
+                className="text-[var(--hud-text-dim)] hover:text-[var(--hud-text)]"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="mb-4 rounded-lg border border-[var(--hud-border)] bg-[var(--hud-bg)] p-4">
+              <div className="mb-2 font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
+                Selected Recipients ({selectedEmails.length})
+              </div>
+              {selectedEmails.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {selectedEmails.map((email) => (
+                    <div key={email} className="flex items-center gap-2 rounded-md border border-[var(--hud-accent)]/40 bg-[var(--hud-accent)]/10 px-3 py-1.5 text-sm">
+                      <span className="text-[var(--hud-text)]">{email}</span>
+                      <button
+                        type="button"
+                        onClick={() => toggleEmail(email)}
+                        className="text-[var(--hud-accent)] hover:text-[var(--hud-text-bright)]"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-[var(--hud-text-dim)]">No recipients selected</p>
+              )}
+            </div>
+
+            <div className="mb-4 rounded-lg border border-[var(--hud-border)] bg-[var(--hud-bg)] p-4">
+              <div className="mb-4 flex items-center gap-3">
+                <input
+                  type="text"
+                  placeholder="Search emails..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="flex-1 border border-[var(--hud-border)] bg-[var(--hud-bg-elevated)] px-4 py-2 text-sm text-[var(--hud-text)] transition-all duration-200 focus:border-[var(--hud-accent)] focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={selectAll}
+                  className="border border-[var(--hud-border)] bg-[var(--hud-bg-elevated)] px-4 py-2 font-mono text-xs uppercase tracking-wider text-[var(--hud-text)] transition-all duration-200 hover:border-[var(--hud-accent)]/60 hover:text-[var(--hud-text-bright)]"
+                >
+                  Select All
+                </button>
+                <button
+                  type="button"
+                  onClick={clearAll}
+                  className="border border-[var(--hud-border)] bg-[var(--hud-bg-elevated)] px-4 py-2 font-mono text-xs uppercase tracking-wider text-[var(--hud-text)] transition-all duration-200 hover:border-[var(--hud-danger)]/60 hover:text-[var(--hud-danger)]"
+                >
+                  Clear All
+                </button>
+              </div>
+
+              <div className="max-h-72 space-y-2 overflow-y-auto">
+                {filteredEmails.map((email) => {
+                  const isSelected = selectedEmails.includes(email);
+                  const isRealEmail = email === "javokhir@raisedash.com";
+                  return (
+                    <button
+                      key={email}
+                      type="button"
+                      onClick={() => toggleEmail(email)}
+                      className={`flex w-full items-center justify-between rounded-lg border px-4 py-3 text-left transition-all duration-200 ${
+                        isSelected ? "border-[var(--hud-accent)]/50 bg-[var(--hud-accent)]/10" : "border-[var(--hud-border)] bg-[var(--hud-bg-elevated)] hover:border-[var(--hud-accent)]/40"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`flex h-5 w-5 items-center justify-center rounded border ${isSelected ? "border-[var(--hud-accent)] bg-[var(--hud-accent)]" : "border-[var(--hud-border)] bg-[var(--hud-bg)]"}`}>
+                          {isSelected && (
+                            <svg className="h-3 w-3 text-[var(--hud-bg)]" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                          )}
+                        </div>
+                        <span className="text-sm text-[var(--hud-text)]">{email}</span>
+                        {isRealEmail && (
+                          <span className="rounded-full border border-[var(--hud-accent)]/40 bg-[var(--hud-accent)]/20 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-[var(--hud-accent)]">Real</span>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="mb-4 rounded-lg border border-[var(--hud-border)] bg-[var(--hud-bg)] p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
+                  Repository: {selectedRepository.owner}/{selectedRepository.name} • Latest Sync: {latestSync ? formatDateTime(latestSync) : "—"}
+                </p>
+                <p className="font-mono text-[10px] uppercase tracking-wider text-[var(--hud-text-dim)]">
+                  Errors: {errorsSummaryLoading ? "Loading…" : errorsSummary ? `${errorsSummary.total} in 7d` : "Unavailable"}
+                </p>
+              </div>
+            </div>
+
+            {reportResult && (
+              <div className={`mb-4 rounded-lg border p-3 ${reportResult.success ? "border-[var(--hud-accent)]/40 bg-[var(--hud-accent)]/10" : "border-[var(--hud-danger)]/40 bg-[var(--hud-danger)]/10"}`}>
+                <p className={`${reportResult.success ? "text-[var(--hud-accent)]" : "text-[var(--hud-danger)]"}`}>{reportResult.message}</p>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowReportModal(false)}
+                className="border border-[var(--hud-border)] bg-[var(--hud-bg-elevated)] px-6 py-2 font-mono text-xs uppercase tracking-wider text-[var(--hud-text)] transition-all duration-200 hover:border-[var(--hud-accent)]/60 hover:text-[var(--hud-text-bright)]"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSendReport}
+                disabled={sendingReport || selectedEmails.length === 0}
+                className="hud-glow border border-[var(--hud-accent)] bg-[var(--hud-accent)] px-6 py-2 font-mono text-xs uppercase tracking-wider text-[var(--hud-bg)] transition-all duration-200 hover:bg-[var(--hud-accent-dim)] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {sendingReport ? "Sending…" : `Send Report (${selectedEmails.length})`}
+              </button>
+            </div>
+          </div>
         </div>
-      </CopilotSidebar>
-    </>
+      )}
+      </div>
+    </CopilotSidebar>
   );
 }
 
