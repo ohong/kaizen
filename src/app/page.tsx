@@ -20,7 +20,12 @@ import {
   generateReviewTimeVsMergeTimeScatter,
   type ComparisonInsight,
 } from "@/lib/metrics";
-import type { DeveloperMetrics, PullRequest, RepositoryMetrics } from "@/lib/types/database";
+import type {
+  DeveloperMetrics,
+  PullRequest,
+  RepositoryMetrics,
+  DatadogError,
+} from "@/lib/types/database";
 import {
   ComparisonBarChart,
   DistributionChart,
@@ -128,7 +133,9 @@ export default function ManagerDashboard() {
   const [selectedEmails, setSelectedEmails] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [sendingReport, setSendingReport] = useState(false);
-  const [reportResult, setReportResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [reportResult, setReportResult] = useState<{ success: boolean; message: string } | null>(
+    null
+  );
   const [errorsSummary, setErrorsSummary] = useState<ErrorsSummary | null>(null);
   const [errorsSummaryLoading, setErrorsSummaryLoading] = useState(false);
 
@@ -331,12 +338,15 @@ export default function ManagerDashboard() {
   }, [repoMetrics, benchmarkRepos]);
 
   const filteredEmails = useMemo(
-    () => AVAILABLE_EMAILS.filter((email) => email.toLowerCase().includes(searchQuery.toLowerCase())),
+    () =>
+      AVAILABLE_EMAILS.filter((email) => email.toLowerCase().includes(searchQuery.toLowerCase())),
     [searchQuery]
   );
 
   const toggleEmail = useCallback((email: string) => {
-    setSelectedEmails((prev) => (prev.includes(email) ? prev.filter((e) => e !== email) : [...prev, email]));
+    setSelectedEmails((prev) =>
+      prev.includes(email) ? prev.filter((e) => e !== email) : [...prev, email]
+    );
   }, []);
 
   const selectAll = useCallback(() => {
@@ -347,29 +357,32 @@ export default function ManagerDashboard() {
     setSelectedEmails([]);
   }, []);
 
-  const transformService = useCallback((originalService: string | null, errorId: number): string => {
-    if (!originalService || originalService === "hosting") {
-      const services = [
-        "nextjs-frontend",
-        "api-gateway",
-        "auth-service",
-        "database",
-        "cdn",
-        "monitoring",
-        "queue-worker",
-        "file-storage",
-        "search-service",
-        "notification-service",
-        "payment-processor",
-        "analytics-service",
-        "cache-redis",
-        "email-service",
-        "webhook-handler",
-      ];
-      return services[errorId % services.length];
-    }
-    return originalService;
-  }, []);
+  const transformService = useCallback(
+    (originalService: string | null, errorId: number): string => {
+      if (!originalService || originalService === "hosting") {
+        const services = [
+          "nextjs-frontend",
+          "api-gateway",
+          "auth-service",
+          "database",
+          "cdn",
+          "monitoring",
+          "queue-worker",
+          "file-storage",
+          "search-service",
+          "notification-service",
+          "payment-processor",
+          "analytics-service",
+          "cache-redis",
+          "email-service",
+          "webhook-handler",
+        ];
+        return services[errorId % services.length];
+      }
+      return originalService;
+    },
+    []
+  );
 
   const loadErrorsSummary = useCallback(async (): Promise<ErrorsSummary | null> => {
     try {
@@ -384,9 +397,16 @@ export default function ManagerDashboard() {
         .eq("name", selectedRepository.name)
         .limit(1);
       if (repoError) throw repoError;
-      const repoId = repoRows && repoRows.length > 0 ? (repoRows[0] as any).id as string : null;
+      const repoId = repoRows && repoRows.length > 0 ? ((repoRows[0] as any).id as string) : null;
       if (!repoId) {
-        setErrorsSummary({ total: 0, byService: [], byEnv: [], timeline: [], recent: [], topMessages: [] });
+        setErrorsSummary({
+          total: 0,
+          byService: [],
+          byEnv: [],
+          timeline: [],
+          recent: [],
+          topMessages: [],
+        });
         return { total: 0, byService: [], byEnv: [], timeline: [], recent: [], topMessages: [] };
       }
 
@@ -403,7 +423,14 @@ export default function ManagerDashboard() {
       const errors: DatadogError[] = (errorRows as any) || [];
 
       if (!errors.length) {
-        const empty: ErrorsSummary = { total: 0, byService: [], byEnv: [], timeline: [], recent: [], topMessages: [] };
+        const empty: ErrorsSummary = {
+          total: 0,
+          byService: [],
+          byEnv: [],
+          timeline: [],
+          recent: [],
+          topMessages: [],
+        };
         setErrorsSummary(empty);
         return empty;
       }
@@ -441,7 +468,12 @@ export default function ManagerDashboard() {
         hours.push(d.toISOString().slice(0, 13) + ":00:00Z");
       }
       const timeline = hours.map((h) => ({
-        date: new Date(h).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", hour12: true }),
+        date: new Date(h).toLocaleString("en-US", {
+          month: "short",
+          day: "numeric",
+          hour: "numeric",
+          hour12: true,
+        }),
         count: byDateMap.get(h) || 0,
       }));
 
@@ -467,7 +499,14 @@ export default function ManagerDashboard() {
         recent.push(e as DatadogError);
       }
 
-      const summary: ErrorsSummary = { total: errors.length, byService, byEnv, timeline, recent, topMessages };
+      const summary: ErrorsSummary = {
+        total: errors.length,
+        byService,
+        byEnv,
+        timeline,
+        recent,
+        topMessages,
+      };
       setErrorsSummary(summary);
       return summary;
     } catch (e) {
@@ -493,18 +532,39 @@ export default function ManagerDashboard() {
       health: healthSummary,
       actionQueue: actionGroups.map((g) => ({ key: g.key, title: g.title, count: g.prs.length })),
       developers: {
-        top: topDevelopers.slice(0, 3).map((d) => ({ author: d.author, overallScore: d.overallScore })),
-        needsAttention: improvementCandidates.slice(0, 3).map((d) => ({ author: d.author, overallScore: d.overallScore })),
+        top: topDevelopers
+          .slice(0, 3)
+          .map((d) => ({ author: d.author, overallScore: d.overallScore })),
+        needsAttention: improvementCandidates
+          .slice(0, 3)
+          .map((d) => ({ author: d.author, overallScore: d.overallScore })),
       },
       benchmarks: {
         speed: comparisonSpeedData,
         quality: comparisonQualityData,
       },
       distributions: { prSizeDistribution },
-      chartsSummary: { sizeVsTimePoints: sizeVsTimeData.length, reviewVsMergePoints: reviewVsMergeData.length },
+      chartsSummary: {
+        sizeVsTimePoints: sizeVsTimeData.length,
+        reviewVsMergePoints: reviewVsMergeData.length,
+      },
       errors: errors,
     };
-  }, [errorsSummary, loadErrorsSummary, selectedRepository, latestSync, healthSummary, actionGroups, topDevelopers, improvementCandidates, comparisonSpeedData, comparisonQualityData, prSizeDistribution, sizeVsTimeData, reviewVsMergeData]);
+  }, [
+    errorsSummary,
+    loadErrorsSummary,
+    selectedRepository,
+    latestSync,
+    healthSummary,
+    actionGroups,
+    topDevelopers,
+    improvementCandidates,
+    comparisonSpeedData,
+    comparisonQualityData,
+    prSizeDistribution,
+    sizeVsTimeData,
+    reviewVsMergeData,
+  ]);
 
   const handleSendReport = useCallback(async () => {
     if (selectedEmails.length === 0) {
@@ -545,66 +605,35 @@ export default function ManagerDashboard() {
   );
 
   return (
-    <>
-      <CopilotSidebar
-        clickOutsideToClose={false}
-        defaultOpen={true}
-        labels={{
-          title: "Popup Assistant",
-          initial: "Hi",
-        }}
-      >
-        <div className="relative min-h-screen bg-[var(--hud-bg)] text-[var(--hud-text)]">
-          <div className="pointer-events-none fixed top-0 left-0 z-0 h-16 w-16 border-l-2 border-t-2 border-[var(--hud-accent)] opacity-30" />
-          <div className="pointer-events-none fixed top-0 right-0 z-0 h-16 w-16 border-r-2 border-t-2 border-[var(--hud-accent)] opacity-30" />
-          <div className="pointer-events-none fixed bottom-0 left-0 z-0 h-16 w-16 border-b-2 border-l-2 border-[var(--hud-accent)] opacity-30" />
-          <div className="pointer-events-none fixed bottom-0 right-0 z-0 h-16 w-16 border-b-2 border-r-2 border-[var(--hud-accent)] opacity-30" />
+    <CopilotSidebar
+      clickOutsideToClose={false}
+      defaultOpen={true}
+      labels={{
+        title: "Popup Assistant",
+        initial: "Hi",
+      }}
+    >
+      <div className="relative min-h-screen bg-[var(--hud-bg)] text-[var(--hud-text)]">
+        <div className="pointer-events-none fixed top-0 left-0 z-0 h-16 w-16 border-l-2 border-t-2 border-[var(--hud-accent)] opacity-30" />
+        <div className="pointer-events-none fixed top-0 right-0 z-0 h-16 w-16 border-r-2 border-t-2 border-[var(--hud-accent)] opacity-30" />
+        <div className="pointer-events-none fixed bottom-0 left-0 z-0 h-16 w-16 border-b-2 border-l-2 border-[var(--hud-accent)] opacity-30" />
+        <div className="pointer-events-none fixed bottom-0 right-0 z-0 h-16 w-16 border-b-2 border-r-2 border-[var(--hud-accent)] opacity-30" />
 
-          <header className="sticky top-0 z-50 border-b border-[var(--hud-border)] bg-[var(--hud-bg)]/95 backdrop-blur-sm">
-            <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-4 px-8 py-5">
-              <div className="flex flex-wrap items-center gap-4">
-                <Image
-                  src="/logo.png"
-                  alt="Kaizen"
-                  width={140}
-                  height={40}
-                  className="h-10 w-auto opacity-90"
-                />
-                <div className="hidden h-8 w-px bg-[var(--hud-border)] md:block" />
-                <div className="font-mono text-xs uppercase tracking-[0.35em] text-[var(--hud-text-dim)]">
-                  <span className="text-[var(--hud-accent)]">▸</span>{" "}
-                  {`${selectedRepository.owner}/${selectedRepository.name}`.toUpperCase()}
-                </div>
-              </div>
-              <div className="hidden h-8 w-px bg-[var(--hud-border)] sm:block" />
-              <RepositorySelector
-                repositories={repositories}
-                selectedOwner={selectedRepository.owner}
-                selectedName={selectedRepository.name}
-                onChange={handleRepositoryChange}
+        <header className="sticky top-0 z-50 border-b border-[var(--hud-border)] bg-[var(--hud-bg)]/95 backdrop-blur-sm">
+          <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-4 px-8 py-5">
+            <div className="flex flex-wrap items-center gap-4">
+              <Image
+                src="/logo.png"
+                alt="Kaizen"
+                width={140}
+                height={40}
+                className="h-10 w-auto opacity-90"
               />
-              <button
-                type="button"
-                onClick={loadData}
-                className="hud-glow border border-[var(--hud-accent)] bg-[var(--hud-bg-elevated)] px-4 py-2 font-mono text-xs uppercase tracking-wider text-[var(--hud-accent)] transition-all duration-200 hover:bg-[var(--hud-accent)] hover:text-[var(--hud-bg)] disabled:cursor-not-allowed disabled:opacity-40"
-                disabled={loading}
-              >
-                {loading ? "Syncing…" : "Sync Data"}
-              </button>
-              <button
-                type="button"
-                onClick={handleOpenReportModal}
-                className="border border-[var(--hud-warning)] bg-[var(--hud-bg-elevated)] px-4 py-2 font-mono text-xs uppercase tracking-wider text-[var(--hud-warning)] transition-all duration-200 hover:bg-[var(--hud-warning)] hover:text-[var(--hud-bg)]"
-              >
-                Send Report
-              </button>
-              <button
-                type="button"
-                onClick={() => router.push("/feedback")}
-                className="border border-[var(--hud-accent)] bg-[var(--hud-bg-elevated)] px-4 py-2 font-mono text-xs uppercase tracking-wider text-[var(--hud-accent)] transition-all duration-200 hover:bg-[var(--hud-accent)] hover:text-[var(--hud-bg)]"
-              >
-                Feedback
-              </button>
+              <div className="hidden h-8 w-px bg-[var(--hud-border)] md:block" />
+              <div className="font-mono text-xs uppercase tracking-[0.35em] text-[var(--hud-text-dim)]">
+                <span className="text-[var(--hud-accent)]">▸</span>{" "}
+                {`${selectedRepository.owner}/${selectedRepository.name}`.toUpperCase()}
+              </div>
             </div>
             <div className="hidden h-8 w-px bg-[var(--hud-border)] sm:block" />
             <RepositorySelector
@@ -638,527 +667,506 @@ export default function ManagerDashboard() {
           </div>
         </header>
 
-      <main className="mx-auto flex max-w-[1600px] flex-col gap-10 px-8 py-12">
-        <section className="hud-panel hud-corner hud-scanline p-8">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-            <div className="space-y-4">
-              <div className="font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
-                ◢ Control Center
-              </div>
-              <h1 className="text-4xl font-semibold text-[var(--hud-text-bright)]">
-                Delivery Control Tower
-              </h1>
-              <p className="max-w-3xl text-sm text-[var(--hud-text-dim)]">
-                One view of how quickly we ship, where work is stalling, and which teammates need support. Built for the engineering manager to steer the Supabase platform team.
-              </p>
-            </div>
-            <div className="min-w-[220px] rounded-lg border border-[var(--hud-border)] bg-[var(--hud-bg)] px-4 py-3 text-right">
-              <p className="font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
-                Viewing Repository
-              </p>
-              <p className="mt-2 font-mono text-sm text-[var(--hud-text-bright)]">
-                {selectedRepository.owner}/{selectedRepository.name}
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {error && (
-          <div className="hud-panel hud-corner border border-[var(--hud-danger)]/40 bg-[var(--hud-danger)]/15 px-4 py-3 text-sm text-[var(--hud-text-bright)]">
-            {error}
-          </div>
-        )}
-
-        {loading && prs.length === 0 ? (
-          <div className="hud-panel hud-corner p-12 text-center text-sm text-[var(--hud-text-dim)]">
-            Loading data for the control tower…
-          </div>
-        ) : (
-          <>
-            <section className="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
-              <div className="hud-panel hud-corner p-6">
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                  <div>
-                    <p className="font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
-                      Team delivery health
-                    </p>
-                    <h2 className="mt-2 text-2xl font-semibold text-[var(--hud-text-bright)]">
-                      {healthSummary.summary}
-                    </h2>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
-                      Composite score
-                    </p>
-                    <p className="text-4xl font-semibold text-[var(--hud-accent)]">
-                      {healthSummary.healthScore !== null ? healthSummary.healthScore : "—"}
-                    </p>
-                  </div>
-                  <h1 className="text-4xl font-semibold text-[var(--hud-text-bright)]">
-                    Delivery Control Tower
-                  </h1>
-                  <p className="max-w-3xl text-sm text-[var(--hud-text-dim)]">
-                    One view of how quickly we ship, where work is stalling, and which teammates
-                    need support. Built for the engineering manager to steer the Supabase platform
-                    team.
-                  </p>
+        <main className="mx-auto flex max-w-[1600px] flex-col gap-10 px-8 py-12">
+          <section className="hud-panel hud-corner hud-scanline p-8">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+              <div className="space-y-4">
+                <div className="font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
+                  ◢ Control Center
                 </div>
-                <div className="min-w-[220px] rounded-lg border border-[var(--hud-border)] bg-[var(--hud-bg)] px-4 py-3 text-right">
-                  <p className="font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
-                    Viewing Repository
-                  </p>
-                  <p className="mt-2 font-mono text-sm text-[var(--hud-text-bright)]">
-                    {selectedRepository.owner}/{selectedRepository.name}
-                  </p>
-                </div>
+                <h1 className="text-4xl font-semibold text-[var(--hud-text-bright)]">
+                  Delivery Control Tower
+                </h1>
+                <p className="max-w-3xl text-sm text-[var(--hud-text-dim)]">
+                  One view of how quickly we ship, where work is stalling, and which teammates need
+                  support. Built for the engineering manager to steer the Supabase platform team.
+                </p>
               </div>
-            </section>
-
-            {error && (
-              <div className="hud-panel hud-corner border border-[var(--hud-danger)]/40 bg-[var(--hud-danger)]/15 px-4 py-3 text-sm text-[var(--hud-text-bright)]">
-                {error}
+              <div className="min-w-[220px] rounded-lg border border-[var(--hud-border)] bg-[var(--hud-bg)] px-4 py-3 text-right">
+                <p className="font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
+                  Viewing Repository
+                </p>
+                <p className="mt-2 font-mono text-sm text-[var(--hud-text-bright)]">
+                  {selectedRepository.owner}/{selectedRepository.name}
+                </p>
               </div>
-            )}
+            </div>
+          </section>
 
-            {loading && prs.length === 0 ? (
-              <div className="hud-panel hud-corner p-12 text-center text-sm text-[var(--hud-text-dim)]">
-                Loading data for the control tower…
-              </div>
-            ) : (
-              <>
-                <section className="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
-                  <div className="hud-panel hud-corner p-6">
-                    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                      <div>
-                        <p className="font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
-                          Team delivery health
-                        </p>
-                        <h2 className="mt-2 text-2xl font-semibold text-[var(--hud-text-bright)]">
-                          {healthSummary.summary}
-                        </h2>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
-                          Composite score
-                        </p>
-                        <p className="text-4xl font-semibold text-[var(--hud-accent)]">
-                          {healthSummary.healthScore !== null ? healthSummary.healthScore : "—"}
-                        </p>
-                      </div>
-                    </div>
+          {error && (
+            <div className="hud-panel hud-corner border border-[var(--hud-danger)]/40 bg-[var(--hud-danger)]/15 px-4 py-3 text-sm text-[var(--hud-text-bright)]">
+              {error}
+            </div>
+          )}
 
-                    <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-                      <SummaryStat
-                        label="Throughput / week"
-                        value={
-                          healthSummary.throughputPerWeek !== null
-                            ? `${healthSummary.throughputPerWeek.toFixed(1)}`
-                            : "—"
-                        }
-                        suffix=" PRs"
-                      />
-                      <SummaryStat
-                        label="Active contributors"
-                        value={
-                          healthSummary.activeContributors !== null
-                            ? formatInteger(healthSummary.activeContributors)
-                            : "—"
-                        }
-                      />
-                      <SummaryStat
-                        label="Avg first review"
-                        value={formatHours(healthSummary.avgTimeToFirstReview)}
-                      />
-                      <SummaryStat
-                        label="Avg merge time"
-                        value={formatHours(healthSummary.avgMergeHours)}
-                      />
-                      <SummaryStat
-                        label="Merge rate"
-                        value={formatPercent(healthSummary.mergeRate)}
-                      />
-                      <SummaryStat
-                        label="Small PR share"
-                        value={formatPercent(healthSummary.smallPRShare)}
-                      />
-                    </div>
-
-                    <div className="mt-6">
+          {loading && prs.length === 0 ? (
+            <div className="hud-panel hud-corner p-12 text-center text-sm text-[var(--hud-text-dim)]">
+              Loading data for the control tower…
+            </div>
+          ) : (
+            <>
+              <section className="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+                <div className="hud-panel hud-corner p-6">
+                  <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                    <div>
                       <p className="font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
-                        Open PR backlog
+                        Team delivery health
                       </p>
-                      <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                        {healthSummary.backlogBuckets.map((bucket) => (
-                          <BacklogPill
-                            key={bucket.label}
-                            label={bucket.label}
-                            count={bucket.count}
-                            total={healthSummary.openPrCount}
-                          />
-                        ))}
-                      </div>
+                      <h2 className="mt-2 text-2xl font-semibold text-[var(--hud-text-bright)]">
+                        {healthSummary.summary}
+                      </h2>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
+                        Composite score
+                      </p>
+                      <p className="text-4xl font-semibold text-[var(--hud-accent)]">
+                        {healthSummary.healthScore !== null ? healthSummary.healthScore : "—"}
+                      </p>
                     </div>
                   </div>
 
-                  <div className="grid gap-4">
-                    <FocusList
-                      title="Focus this sprint"
-                      items={healthSummary.focusAreas}
-                      emptyLabel="No urgent risks detected"
-                      tone="warning"
+                  <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+                    <SummaryStat
+                      label="Throughput / week"
+                      value={
+                        healthSummary.throughputPerWeek !== null
+                          ? `${healthSummary.throughputPerWeek.toFixed(1)}`
+                          : "—"
+                      }
+                      suffix=" PRs"
                     />
-                    <FocusList
-                      title="What’s working"
-                      items={healthSummary.wins}
-                      emptyLabel="We need more data to celebrate wins"
-                      tone="positive"
+                    <SummaryStat
+                      label="Active contributors"
+                      value={
+                        healthSummary.activeContributors !== null
+                          ? formatInteger(healthSummary.activeContributors)
+                          : "—"
+                      }
+                    />
+                    <SummaryStat
+                      label="Avg first review"
+                      value={formatHours(healthSummary.avgTimeToFirstReview)}
+                    />
+                    <SummaryStat
+                      label="Avg merge time"
+                      value={formatHours(healthSummary.avgMergeHours)}
+                    />
+                    <SummaryStat
+                      label="Merge rate"
+                      value={formatPercent(healthSummary.mergeRate)}
+                    />
+                    <SummaryStat
+                      label="Small PR share"
+                      value={formatPercent(healthSummary.smallPRShare)}
                     />
                   </div>
-                </section>
 
-                <section>
-                  <h2 className="mb-4 text-xl font-semibold text-[var(--hud-text-bright)]">
-                    Action queue
-                  </h2>
-                  {actionGroups.length === 0 ? (
-                    <div className="hud-panel hud-corner p-6 text-sm text-[var(--hud-text-dim)]">
-                      No blocking pull requests right now. Keep the flow moving.
-                    </div>
-                  ) : (
-                    <div className="grid gap-4 lg:grid-cols-3">
-                      {actionGroups.map((group) => (
-                        <ActionGroupCard key={group.key} group={group} />
-                      ))}
-                    </div>
-                  )}
-                </section>
-
-                <section className="grid gap-6 xl:grid-cols-[420px_1fr]">
-                  <div className="hud-panel hud-corner p-6">
+                  <div className="mt-6">
                     <p className="font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
-                      Top performers
+                      Open PR backlog
                     </p>
-                    <div className="mt-3 grid gap-3">
-                      {topDevelopers.map((dev, index) => (
-                        <button
-                          key={dev.author}
-                          type="button"
-                          onClick={() => setSelectedDeveloper(dev.author)}
-                          className={`flex items-center justify-between rounded-xl border px-4 py-3 text-left transition-all duration-200 ${
-                            selectedDeveloper === dev.author
-                              ? "border-[var(--hud-accent)]/50 bg-[var(--hud-accent)]/10"
-                              : "border-[var(--hud-border)] bg-[var(--hud-bg)] hover:border-[var(--hud-accent)]/40 hover:bg-[var(--hud-bg-elevated)]"
-                          }`}
-                        >
-                          <div>
-                            <p className="text-sm font-medium text-[var(--hud-text-bright)]">
-                              {dev.author}
-                            </p>
-                            <p className="text-xs text-[var(--hud-text-dim)]">
-                              Overall {dev.overallScore}
-                            </p>
-                          </div>
-                          <span className="font-mono text-lg font-semibold text-[var(--hud-accent)]">
-                            #{index + 1}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-
-                    <p className="mt-6 font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
-                      Needs attention
-                    </p>
-                    <div className="mt-3 space-y-2">
-                      {improvementCandidates.map((dev) => (
-                        <div
-                          key={`${dev.author}-needs-attention`}
-                          className="flex items-center justify-between rounded-lg border border-[var(--hud-border)] bg-[var(--hud-bg)] px-4 py-2"
-                        >
-                          <div>
-                            <p className="text-sm font-medium text-[var(--hud-text-bright)]">
-                              {dev.author}
-                            </p>
-                            <p className="text-xs text-[var(--hud-text-dim)]">
-                              Score {dev.overallScore}
-                            </p>
-                          </div>
-                          <span className="font-mono text-xs uppercase tracking-wider text-[var(--hud-warning)]">
-                            Coaching opportunity
-                          </span>
-                        </div>
+                    <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                      {healthSummary.backlogBuckets.map((bucket) => (
+                        <BacklogPill
+                          key={bucket.label}
+                          label={bucket.label}
+                          count={bucket.count}
+                          total={healthSummary.openPrCount}
+                        />
                       ))}
                     </div>
                   </div>
+                </div>
 
-                  <div className="grid gap-6">
-                    <div className="grid gap-6 lg:grid-cols-2">
-                      <div className="h-[320px] hud-panel hud-corner p-4">
-                        <RadarChartViz
-                          data={developerRadarData}
-                          title={
-                            selectedDeveloper
-                              ? `${selectedDeveloper} - efficiency profile`
-                              : "Efficiency profile"
-                          }
-                          name={selectedDeveloper || "Developer"}
-                          color="#8b5cf6"
-                        />
-                      </div>
-                      {selectedDeveloperData && (
-                        <div className="grid gap-4">
-                          <ScoreCard
-                            title="Velocity"
-                            score={selectedDeveloperData.velocityScore.score}
-                            percentile={selectedDeveloperData.velocityScore.percentile}
-                            interpretation={selectedDeveloperData.velocityScore.interpretation}
-                            recommendation={selectedDeveloperData.velocityScore.recommendation}
-                          />
-                          <ScoreCard
-                            title="Quality"
-                            score={selectedDeveloperData.qualityScore.score}
-                            percentile={selectedDeveloperData.qualityScore.percentile}
-                            interpretation={selectedDeveloperData.qualityScore.interpretation}
-                            recommendation={selectedDeveloperData.qualityScore.recommendation}
-                          />
+                <div className="grid gap-4">
+                  <FocusList
+                    title="Focus this sprint"
+                    items={healthSummary.focusAreas}
+                    emptyLabel="No urgent risks detected"
+                    tone="warning"
+                  />
+                  <FocusList
+                    title="What’s working"
+                    items={healthSummary.wins}
+                    emptyLabel="We need more data to celebrate wins"
+                    tone="positive"
+                  />
+                </div>
+              </section>
+
+              <section>
+                <h2 className="mb-4 text-xl font-semibold text-[var(--hud-text-bright)]">
+                  Action queue
+                </h2>
+                {actionGroups.length === 0 ? (
+                  <div className="hud-panel hud-corner p-6 text-sm text-[var(--hud-text-dim)]">
+                    No blocking pull requests right now. Keep the flow moving.
+                  </div>
+                ) : (
+                  <div className="grid gap-4 lg:grid-cols-3">
+                    {actionGroups.map((group) => (
+                      <ActionGroupCard key={group.key} group={group} />
+                    ))}
+                  </div>
+                )}
+              </section>
+
+              <section className="grid gap-6 xl:grid-cols-[420px_1fr]">
+                <div className="hud-panel hud-corner p-6">
+                  <p className="font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
+                    Top performers
+                  </p>
+                  <div className="mt-3 grid gap-3">
+                    {topDevelopers.map((dev, index) => (
+                      <button
+                        key={dev.author}
+                        type="button"
+                        onClick={() => setSelectedDeveloper(dev.author)}
+                        className={`flex items-center justify-between rounded-xl border px-4 py-3 text-left transition-all duration-200 ${
+                          selectedDeveloper === dev.author
+                            ? "border-[var(--hud-accent)]/50 bg-[var(--hud-accent)]/10"
+                            : "border-[var(--hud-border)] bg-[var(--hud-bg)] hover:border-[var(--hud-accent)]/40 hover:bg-[var(--hud-bg-elevated)]"
+                        }`}
+                      >
+                        <div>
+                          <p className="text-sm font-medium text-[var(--hud-text-bright)]">
+                            {dev.author}
+                          </p>
+                          <p className="text-xs text-[var(--hud-text-dim)]">
+                            Overall {dev.overallScore}
+                          </p>
                         </div>
-                      )}
+                        <span className="font-mono text-lg font-semibold text-[var(--hud-accent)]">
+                          #{index + 1}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+
+                  <p className="mt-6 font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
+                    Needs attention
+                  </p>
+                  <div className="mt-3 space-y-2">
+                    {improvementCandidates.map((dev) => (
+                      <div
+                        key={`${dev.author}-needs-attention`}
+                        className="flex items-center justify-between rounded-lg border border-[var(--hud-border)] bg-[var(--hud-bg)] px-4 py-2"
+                      >
+                        <div>
+                          <p className="text-sm font-medium text-[var(--hud-text-bright)]">
+                            {dev.author}
+                          </p>
+                          <p className="text-xs text-[var(--hud-text-dim)]">
+                            Score {dev.overallScore}
+                          </p>
+                        </div>
+                        <span className="font-mono text-xs uppercase tracking-wider text-[var(--hud-warning)]">
+                          Coaching opportunity
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid gap-6">
+                  <div className="grid gap-6 lg:grid-cols-2">
+                    <div className="h-[320px] hud-panel hud-corner p-4">
+                      <RadarChartViz
+                        data={developerRadarData}
+                        title={
+                          selectedDeveloper
+                            ? `${selectedDeveloper} - efficiency profile`
+                            : "Efficiency profile"
+                        }
+                        name={selectedDeveloper || "Developer"}
+                        color="#8b5cf6"
+                      />
                     </div>
                     {selectedDeveloperData && (
-                      <div className="grid gap-4 lg:grid-cols-2">
+                      <div className="grid gap-4">
                         <ScoreCard
-                          title="Collaboration"
-                          score={selectedDeveloperData.collaborationScore.score}
-                          percentile={selectedDeveloperData.collaborationScore.percentile}
-                          interpretation={selectedDeveloperData.collaborationScore.interpretation}
-                          recommendation={selectedDeveloperData.collaborationScore.recommendation}
+                          title="Velocity"
+                          score={selectedDeveloperData.velocityScore.score}
+                          percentile={selectedDeveloperData.velocityScore.percentile}
+                          interpretation={selectedDeveloperData.velocityScore.interpretation}
+                          recommendation={selectedDeveloperData.velocityScore.recommendation}
                         />
                         <ScoreCard
-                          title="Consistency"
-                          score={selectedDeveloperData.consistencyScore.score}
-                          percentile={selectedDeveloperData.consistencyScore.percentile}
-                          interpretation={selectedDeveloperData.consistencyScore.interpretation}
-                          recommendation={selectedDeveloperData.consistencyScore.recommendation}
+                          title="Quality"
+                          score={selectedDeveloperData.qualityScore.score}
+                          percentile={selectedDeveloperData.qualityScore.percentile}
+                          interpretation={selectedDeveloperData.qualityScore.interpretation}
+                          recommendation={selectedDeveloperData.qualityScore.recommendation}
                         />
                       </div>
                     )}
                   </div>
-                </section>
+                  {selectedDeveloperData && (
+                    <div className="grid gap-4 lg:grid-cols-2">
+                      <ScoreCard
+                        title="Collaboration"
+                        score={selectedDeveloperData.collaborationScore.score}
+                        percentile={selectedDeveloperData.collaborationScore.percentile}
+                        interpretation={selectedDeveloperData.collaborationScore.interpretation}
+                        recommendation={selectedDeveloperData.collaborationScore.recommendation}
+                      />
+                      <ScoreCard
+                        title="Consistency"
+                        score={selectedDeveloperData.consistencyScore.score}
+                        percentile={selectedDeveloperData.consistencyScore.percentile}
+                        interpretation={selectedDeveloperData.consistencyScore.interpretation}
+                        recommendation={selectedDeveloperData.consistencyScore.recommendation}
+                      />
+                    </div>
+                  )}
+                </div>
+              </section>
 
+              <section>
+                <h2 className="mb-4 text-xl font-semibold text-[var(--hud-text-bright)]">
+                  Workflow signals
+                </h2>
+                <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
+                  <div className="h-[360px] hud-panel hud-corner p-4">
+                    <ScatterChartViz
+                      data={sizeVsTimeData}
+                      xLabel="PR size (additions + deletions)"
+                      yLabel="Time to merge"
+                      title="PR size vs merge time"
+                      xUnit=" lines"
+                      yUnit=" h"
+                    />
+                  </div>
+                  <div className="h-[360px] hud-panel hud-corner p-4">
+                    <ScatterChartViz
+                      data={reviewVsMergeData}
+                      xLabel="Time to first review"
+                      yLabel="Time to merge"
+                      title="Review responsiveness"
+                      xUnit=" h"
+                      yUnit=" h"
+                    />
+                  </div>
+                  <div className="h-[360px] hud-panel hud-corner p-4">
+                    <DistributionChart
+                      data={prSizeDistribution}
+                      title="PR size distribution"
+                      yLabel="Number of PRs"
+                    />
+                  </div>
+                </div>
+              </section>
+
+              <section className="grid gap-6 xl:grid-cols-2">
+                <div className="h-[420px] hud-panel hud-corner p-4">
+                  <ComparisonBarChart
+                    data={comparisonSpeedData}
+                    title="Cycle time vs industry"
+                    yLabel="Hours"
+                    valueUnit=""
+                    lowerIsBetter
+                  />
+                </div>
+                <div className="h-[420px] hud-panel hud-corner p-4">
+                  <ComparisonBarChart
+                    data={comparisonQualityData}
+                    title="Quality signals vs industry"
+                    yLabel="Value"
+                  />
+                </div>
+              </section>
+
+              {comparisonInsights.length > 0 && (
                 <section>
                   <h2 className="mb-4 text-xl font-semibold text-[var(--hud-text-bright)]">
-                    Workflow signals
+                    Benchmark insights
                   </h2>
-                  <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
-                    <div className="h-[360px] hud-panel hud-corner p-4">
-                      <ScatterChartViz
-                        data={sizeVsTimeData}
-                        xLabel="PR size (additions + deletions)"
-                        yLabel="Time to merge"
-                        title="PR size vs merge time"
-                        xUnit=" lines"
-                        yUnit=" h"
-                      />
-                    </div>
-                    <div className="h-[360px] hud-panel hud-corner p-4">
-                      <ScatterChartViz
-                        data={reviewVsMergeData}
-                        xLabel="Time to first review"
-                        yLabel="Time to merge"
-                        title="Review responsiveness"
-                        xUnit=" h"
-                        yUnit=" h"
-                      />
-                    </div>
-                    <div className="h-[360px] hud-panel hud-corner p-4">
-                      <DistributionChart
-                        data={prSizeDistribution}
-                        title="PR size distribution"
-                        yLabel="Number of PRs"
-                      />
-                    </div>
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    {comparisonInsights.map((insight) => (
+                      <InsightCard key={insight.metric} insight={insight} />
+                    ))}
                   </div>
                 </section>
+              )}
 
-                <section className="grid gap-6 xl:grid-cols-2">
-                  <div className="h-[420px] hud-panel hud-corner p-4">
-                    <ComparisonBarChart
-                      data={comparisonSpeedData}
-                      title="Cycle time vs industry"
-                      yLabel="Hours"
-                      valueUnit=""
-                      lowerIsBetter
-                    />
-                  </div>
-                  <div className="h-[420px] hud-panel hud-corner p-4">
-                    <ComparisonBarChart
-                      data={comparisonQualityData}
-                      title="Quality signals vs industry"
-                      yLabel="Value"
-                    />
-                  </div>
-                </section>
+              <section>
+                <DatadogErrorsSection
+                  owner={selectedRepository.owner}
+                  name={selectedRepository.name}
+                />
+              </section>
+            </>
+          )}
+        </main>
 
-                {comparisonInsights.length > 0 && (
-                  <section>
-                    <h2 className="mb-4 text-xl font-semibold text-[var(--hud-text-bright)]">
-                      Benchmark insights
-                    </h2>
-                    <div className="grid gap-4 lg:grid-cols-2">
-                      {comparisonInsights.map((insight) => (
-                        <InsightCard key={insight.metric} insight={insight} />
-                      ))}
-                    </div>
-                  </section>
-                )}
-
-                <section>
-                  <DatadogErrorsSection
-                    owner={selectedRepository.owner}
-                    name={selectedRepository.name}
-                  />
-                </section>
-              </>
-            )}
-
-            <section>
-              <DatadogErrorsSection owner={selectedRepository.owner} name={selectedRepository.name} />
-            </section>
-          </>
-        )}
-      </main>
-      {showReportModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/60" onClick={() => setShowReportModal(false)} />
-          <div className="relative z-10 w-full max-w-3xl hud-panel hud-corner p-6">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-xl font-semibold text-[var(--hud-text-bright)]">Send Delivery Report</h3>
-              <button
-                type="button"
-                onClick={() => setShowReportModal(false)}
-                className="text-[var(--hud-text-dim)] hover:text-[var(--hud-text)]"
-              >
-                ×
-              </button>
-            </div>
-
-            <div className="mb-4 rounded-lg border border-[var(--hud-border)] bg-[var(--hud-bg)] p-4">
-              <div className="mb-2 font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
-                Selected Recipients ({selectedEmails.length})
+        {showReportModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div
+              className="absolute inset-0 bg-black/60"
+              onClick={() => setShowReportModal(false)}
+            />
+            <div className="relative z-10 w-full max-w-3xl hud-panel hud-corner p-6">
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="text-xl font-semibold text-[var(--hud-text-bright)]">
+                  Send Delivery Report
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setShowReportModal(false)}
+                  className="text-[var(--hud-text-dim)] hover:text-[var(--hud-text)]"
+                >
+                  ×
+                </button>
               </div>
-              {selectedEmails.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {selectedEmails.map((email) => (
-                    <div key={email} className="flex items-center gap-2 rounded-md border border-[var(--hud-accent)]/40 bg-[var(--hud-accent)]/10 px-3 py-1.5 text-sm">
-                      <span className="text-[var(--hud-text)]">{email}</span>
+
+              <div className="mb-4 rounded-lg border border-[var(--hud-border)] bg-[var(--hud-bg)] p-4">
+                <div className="mb-2 font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
+                  Selected Recipients ({selectedEmails.length})
+                </div>
+                {selectedEmails.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {selectedEmails.map((email) => (
+                      <div
+                        key={email}
+                        className="flex items-center gap-2 rounded-md border border-[var(--hud-accent)]/40 bg-[var(--hud-accent)]/10 px-3 py-1.5 text-sm"
+                      >
+                        <span className="text-[var(--hud-text)]">{email}</span>
+                        <button
+                          type="button"
+                          onClick={() => toggleEmail(email)}
+                          className="text-[var(--hud-accent)] hover:text-[var(--hud-text-bright)]"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-[var(--hud-text-dim)]">No recipients selected</p>
+                )}
+              </div>
+
+              <div className="mb-4 rounded-lg border border-[var(--hud-border)] bg-[var(--hud-bg)] p-4">
+                <div className="mb-4 flex items-center gap-3">
+                  <input
+                    type="text"
+                    placeholder="Search emails..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="flex-1 border border-[var(--hud-border)] bg-[var(--hud-bg-elevated)] px-4 py-2 text-sm text-[var(--hud-text)] transition-all duration-200 focus:border-[var(--hud-accent)] focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={selectAll}
+                    className="border border-[var(--hud-border)] bg-[var(--hud-bg-elevated)] px-4 py-2 font-mono text-xs uppercase tracking-wider text-[var(--hud-text)] transition-all duration-200 hover:border-[var(--hud-accent)]/60 hover:text-[var(--hud-text-bright)]"
+                  >
+                    Select All
+                  </button>
+                  <button
+                    type="button"
+                    onClick={clearAll}
+                    className="border border-[var(--hud-border)] bg-[var(--hud-bg-elevated)] px-4 py-2 font-mono text-xs uppercase tracking-wider text-[var(--hud-text)] transition-all duration-200 hover:border-[var(--hud-danger)]/60 hover:text-[var(--hud-danger)]"
+                  >
+                    Clear All
+                  </button>
+                </div>
+
+                <div className="max-h-72 space-y-2 overflow-y-auto">
+                  {filteredEmails.map((email) => {
+                    const isSelected = selectedEmails.includes(email);
+                    const isRealEmail = email === "javokhir@raisedash.com";
+                    return (
                       <button
+                        key={email}
                         type="button"
                         onClick={() => toggleEmail(email)}
-                        className="text-[var(--hud-accent)] hover:text-[var(--hud-text-bright)]"
+                        className={`flex w-full items-center justify-between rounded-lg border px-4 py-3 text-left transition-all duration-200 ${
+                          isSelected
+                            ? "border-[var(--hud-accent)]/50 bg-[var(--hud-accent)]/10"
+                            : "border-[var(--hud-border)] bg-[var(--hud-bg-elevated)] hover:border-[var(--hud-accent)]/40"
+                        }`}
                       >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-[var(--hud-text-dim)]">No recipients selected</p>
-              )}
-            </div>
-
-            <div className="mb-4 rounded-lg border border-[var(--hud-border)] bg-[var(--hud-bg)] p-4">
-              <div className="mb-4 flex items-center gap-3">
-                <input
-                  type="text"
-                  placeholder="Search emails..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="flex-1 border border-[var(--hud-border)] bg-[var(--hud-bg-elevated)] px-4 py-2 text-sm text-[var(--hud-text)] transition-all duration-200 focus:border-[var(--hud-accent)] focus:outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={selectAll}
-                  className="border border-[var(--hud-border)] bg-[var(--hud-bg-elevated)] px-4 py-2 font-mono text-xs uppercase tracking-wider text-[var(--hud-text)] transition-all duration-200 hover:border-[var(--hud-accent)]/60 hover:text-[var(--hud-text-bright)]"
-                >
-                  Select All
-                </button>
-                <button
-                  type="button"
-                  onClick={clearAll}
-                  className="border border-[var(--hud-border)] bg-[var(--hud-bg-elevated)] px-4 py-2 font-mono text-xs uppercase tracking-wider text-[var(--hud-text)] transition-all duration-200 hover:border-[var(--hud-danger)]/60 hover:text-[var(--hud-danger)]"
-                >
-                  Clear All
-                </button>
-              </div>
-
-              <div className="max-h-72 space-y-2 overflow-y-auto">
-                {filteredEmails.map((email) => {
-                  const isSelected = selectedEmails.includes(email);
-                  const isRealEmail = email === "javokhir@raisedash.com";
-                  return (
-                    <button
-                      key={email}
-                      type="button"
-                      onClick={() => toggleEmail(email)}
-                      className={`flex w-full items-center justify-between rounded-lg border px-4 py-3 text-left transition-all duration-200 ${
-                        isSelected ? "border-[var(--hud-accent)]/50 bg-[var(--hud-accent)]/10" : "border-[var(--hud-border)] bg-[var(--hud-bg-elevated)] hover:border-[var(--hud-accent)]/40"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className={`flex h-5 w-5 items-center justify-center rounded border ${isSelected ? "border-[var(--hud-accent)] bg-[var(--hud-accent)]" : "border-[var(--hud-border)] bg-[var(--hud-bg)]"}`}>
-                          {isSelected && (
-                            <svg className="h-3 w-3 text-[var(--hud-bg)]" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                            </svg>
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`flex h-5 w-5 items-center justify-center rounded border ${isSelected ? "border-[var(--hud-accent)] bg-[var(--hud-accent)]" : "border-[var(--hud-border)] bg-[var(--hud-bg)]"}`}
+                          >
+                            {isSelected && (
+                              <svg
+                                className="h-3 w-3 text-[var(--hud-bg)]"
+                                fill="currentColor"
+                                viewBox="0 0 20 20"
+                              >
+                                <path
+                                  fillRule="evenodd"
+                                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
+                            )}
+                          </div>
+                          <span className="text-sm text-[var(--hud-text)]">{email}</span>
+                          {isRealEmail && (
+                            <span className="rounded-full border border-[var(--hud-accent)]/40 bg-[var(--hud-accent)]/20 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-[var(--hud-accent)]">
+                              Real
+                            </span>
                           )}
                         </div>
-                        <span className="text-sm text-[var(--hud-text)]">{email}</span>
-                        {isRealEmail && (
-                          <span className="rounded-full border border-[var(--hud-accent)]/40 bg-[var(--hud-accent)]/20 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-[var(--hud-accent)]">Real</span>
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
 
-            <div className="mb-4 rounded-lg border border-[var(--hud-border)] bg-[var(--hud-bg)] p-4">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
-                  Repository: {selectedRepository.owner}/{selectedRepository.name} • Latest Sync: {latestSync ? formatDateTime(latestSync) : "—"}
-                </p>
-                <p className="font-mono text-[10px] uppercase tracking-wider text-[var(--hud-text-dim)]">
-                  Errors: {errorsSummaryLoading ? "Loading…" : errorsSummary ? `${errorsSummary.total} in 7d` : "Unavailable"}
-                </p>
+              <div className="mb-4 rounded-lg border border-[var(--hud-border)] bg-[var(--hud-bg)] p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
+                    Repository: {selectedRepository.owner}/{selectedRepository.name} • Latest Sync:{" "}
+                    {latestSync ? formatDateTime(latestSync) : "—"}
+                  </p>
+                  <p className="font-mono text-[10px] uppercase tracking-wider text-[var(--hud-text-dim)]">
+                    Errors:{" "}
+                    {errorsSummaryLoading
+                      ? "Loading…"
+                      : errorsSummary
+                        ? `${errorsSummary.total} in 7d`
+                        : "Unavailable"}
+                  </p>
+                </div>
               </div>
-            </div>
 
-            {reportResult && (
-              <div className={`mb-4 rounded-lg border p-3 ${reportResult.success ? "border-[var(--hud-accent)]/40 bg-[var(--hud-accent)]/10" : "border-[var(--hud-danger)]/40 bg-[var(--hud-danger)]/10"}`}>
-                <p className={`${reportResult.success ? "text-[var(--hud-accent)]" : "text-[var(--hud-danger)]"}`}>{reportResult.message}</p>
+              {reportResult && (
+                <div
+                  className={`mb-4 rounded-lg border p-3 ${reportResult.success ? "border-[var(--hud-accent)]/40 bg-[var(--hud-accent)]/10" : "border-[var(--hud-danger)]/40 bg-[var(--hud-danger)]/10"}`}
+                >
+                  <p
+                    className={`${reportResult.success ? "text-[var(--hud-accent)]" : "text-[var(--hud-danger)]"}`}
+                  >
+                    {reportResult.message}
+                  </p>
+                </div>
+              )}
+
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowReportModal(false)}
+                  className="border border-[var(--hud-border)] bg-[var(--hud-bg-elevated)] px-6 py-2 font-mono text-xs uppercase tracking-wider text-[var(--hud-text)] transition-all duration-200 hover:border-[var(--hud-accent)]/60 hover:text-[var(--hud-text-bright)]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSendReport}
+                  disabled={sendingReport || selectedEmails.length === 0}
+                  className="hud-glow border border-[var(--hud-accent)] bg-[var(--hud-accent)] px-6 py-2 font-mono text-xs uppercase tracking-wider text-[var(--hud-bg)] transition-all duration-200 hover:bg-[var(--hud-accent-dim)] disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {sendingReport ? "Sending…" : `Send Report (${selectedEmails.length})`}
+                </button>
               </div>
-            )}
-
-            <div className="flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setShowReportModal(false)}
-                className="border border-[var(--hud-border)] bg-[var(--hud-bg-elevated)] px-6 py-2 font-mono text-xs uppercase tracking-wider text-[var(--hud-text)] transition-all duration-200 hover:border-[var(--hud-accent)]/60 hover:text-[var(--hud-text-bright)]"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleSendReport}
-                disabled={sendingReport || selectedEmails.length === 0}
-                className="hud-glow border border-[var(--hud-accent)] bg-[var(--hud-accent)] px-6 py-2 font-mono text-xs uppercase tracking-wider text-[var(--hud-bg)] transition-all duration-200 hover:bg-[var(--hud-accent-dim)] disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                {sendingReport ? "Sending…" : `Send Report (${selectedEmails.length})`}
-              </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
       </div>
     </CopilotSidebar>
   );
