@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { CopilotSidebar } from "@copilotkit/react-ui";
 
 import {
+  ActionQueueSection,
   BenchmarkInsightsSection,
   ControlTowerHero,
   DashboardHeader,
@@ -397,7 +398,9 @@ export default function ManagerDashboard() {
             </div>
           ) : (
             <>
-              <HealthOverviewSection summary={healthSummary} actionGroups={actionGroups} />
+              <HealthOverviewSection summary={healthSummary} />
+
+              <ActionQueueSection actionGroups={actionGroups} />
 
               <DeveloperInsightsSection
                 developers={sortedDevelopers}

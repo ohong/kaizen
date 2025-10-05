@@ -1,6 +1,7 @@
 export { DashboardHeader } from "./DashboardHeader";
 export { ControlTowerHero } from "./ControlTowerHero";
 export { HealthOverviewSection } from "./HealthOverviewSection";
+export { ActionQueueSection } from "./ActionQueueSection";
 export { DeveloperInsightsSection } from "./DeveloperInsightsSection";
 export { WorkflowSignalsSection } from "./WorkflowSignalsSection";
 export { BenchmarkInsightsSection } from "./BenchmarkInsightsSection";

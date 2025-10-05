@@ -41,71 +41,59 @@ export function DeveloperInsightsSection({
     ];
   }, [selectedDeveloperData]);
 
-  const topDevelopers = developers.slice(0, 5);
-  const improvementCandidates = developers.length <= 3
-    ? [...developers].reverse()
-    : developers.slice(-3).reverse();
+  const topDevelopers = useMemo(() => developers.slice(0, 5), [developers]);
+  const improvementCandidates = useMemo(() => {
+    if (developers.length <= 3) {
+      return [...developers].reverse();
+    }
+    return developers.slice(-3).reverse();
+  }, [developers]);
 
   return (
-    <section className="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+    <section className="grid gap-6 xl:grid-cols-[420px_1fr]">
       <div className="hud-panel hud-corner p-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
-              Developer leaderboard
-            </p>
-            <h2 className="mt-2 text-2xl font-semibold text-[var(--hud-text-bright)]">
-              Efficiency patterns by teammate
-            </h2>
-          </div>
+        <p className="font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
+          Top performers
+        </p>
+        <div className="mt-3 grid gap-3">
+          {topDevelopers.map((dev, index) => (
+            <button
+              key={dev.author}
+              type="button"
+              onClick={() => onSelectDeveloper(dev.author)}
+              className={`flex items-center justify-between rounded-xl border px-4 py-3 text-left transition-all duration-200 ${
+                selectedDeveloperData?.author === dev.author
+                  ? "border-[var(--hud-accent)]/50 bg-[var(--hud-accent)]/10"
+                  : "border-[var(--hud-border)] bg-[var(--hud-bg)] hover:border-[var(--hud-accent)]/40 hover:bg-[var(--hud-bg-elevated)]"
+              }`}
+            >
+              <div>
+                <p className="text-sm font-medium text-[var(--hud-text-bright)]">{dev.author}</p>
+                <p className="text-xs text-[var(--hud-text-dim)]">Overall {dev.overallScore}</p>
+              </div>
+              <span className="font-mono text-lg font-semibold text-[var(--hud-accent)]">#{index + 1}</span>
+            </button>
+          ))}
         </div>
 
-        <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-          <div className="space-y-3">
-            {topDevelopers.map((dev) => {
-              const isSelected = selectedDeveloperData?.author === dev.author;
-              return (
-                <button
-                  key={dev.author}
-                  type="button"
-                  onClick={() => onSelectDeveloper(dev.author)}
-                  className={`flex w-full items-center justify-between rounded-lg border px-4 py-3 text-left transition-colors duration-150 ${
-                    isSelected
-                      ? "border-[var(--hud-accent)] bg-[var(--hud-accent)]/10 text-[var(--hud-text-bright)]"
-                      : "border-[var(--hud-border)] bg-[var(--hud-bg-elevated)] text-[var(--hud-text)] hover:border-[var(--hud-accent)]/40"
-                  }`}
-                >
-                  <div>
-                    <p className="text-sm font-medium">{dev.author}</p>
-                    <p className="text-xs text-[var(--hud-text-dim)]">
-                      Score {Math.round(dev.overallScore)}
-                    </p>
-                  </div>
-                  <span className="rounded-full border border-[var(--hud-border)] px-2 py-1 font-mono text-[10px] uppercase tracking-widest text-[var(--hud-text-dim)]">
-                    Top 5
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-          <div className="space-y-3">
-            {improvementCandidates.map((dev) => (
-              <div
-                key={dev.author}
-                className="flex items-center justify-between rounded-lg border border-[var(--hud-border)] bg-[var(--hud-bg)] px-4 py-2"
-              >
-                <div>
-                  <p className="text-sm font-medium text-[var(--hud-text-bright)]">{dev.author}</p>
-                  <p className="text-xs text-[var(--hud-text-dim)]">
-                    Score {Math.round(dev.overallScore)}
-                  </p>
-                </div>
-                <span className="font-mono text-xs uppercase tracking-wider text-[var(--hud-warning)]">
-                  Coaching opportunity
-                </span>
+        <p className="mt-6 font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
+          Needs attention
+        </p>
+        <div className="mt-3 space-y-2">
+          {improvementCandidates.map((dev) => (
+            <div
+              key={`${dev.author}-needs-attention`}
+              className="flex items-center justify-between rounded-lg border border-[var(--hud-border)] bg-[var(--hud-bg)] px-4 py-2"
+            >
+              <div>
+                <p className="text-sm font-medium text-[var(--hud-text-bright)]">{dev.author}</p>
+                <p className="text-xs text-[var(--hud-text-dim)]">Score {dev.overallScore}</p>
               </div>
-            ))}
-          </div>
+              <span className="font-mono text-xs uppercase tracking-wider text-[var(--hud-warning)]">
+                Coaching opportunity
+              </span>
+            </div>
+          ))}
         </div>
       </div>
 
