@@ -31,6 +31,7 @@ import {
   RadarChartViz,
   ScatterChartViz,
 } from "@/components/charts";
+import DatadogErrorsSection from "@/components/DatadogErrorsSection";
 
 const COPILOT_INSTRUCTIONS = `You are Kaizen's delivery analytics copilot. Help engineering leaders understand repository health, pull requests, developers, and operational metrics. You can call GitHub MCP tools to inspect repositories and Supabase's SQL tool run_supabase_sql to query analytics tables. Prefer read-only queries; avoid destructive SQL. Always explain how you reached conclusions and surface specific metrics or PR examples when available.`;
 
@@ -88,17 +89,17 @@ export default function ManagerDashboard() {
     try {
       const [prResult, devResult, repoResult] = await Promise.all([
         supabase
-          .from<PullRequest>("pull_requests")
+          .from("pull_requests")
           .select("*")
           .eq("repository_owner", selectedRepository.owner)
           .eq("repository_name", selectedRepository.name)
           .order("updated_at", { ascending: false }),
         supabase
-          .from<DeveloperMetrics>("developer_metrics")
+          .from("developer_metrics")
           .select("*")
           .eq("repository_owner", selectedRepository.owner)
           .eq("repository_name", selectedRepository.name),
-        supabase.from<RepositoryMetrics>("repository_metrics").select("*"),
+        supabase.from("repository_metrics").select("*"),
       ]);
 
       if (prResult.error) throw prResult.error;
@@ -357,6 +358,34 @@ export default function ManagerDashboard() {
                 Send Report
               </button>
             </div>
+            <div className="hidden h-8 w-px bg-[var(--hud-border)] sm:block" />
+            <RepositorySelector
+              repositories={repositories}
+              selectedOwner={selectedRepository.owner}
+              selectedName={selectedRepository.name}
+              onChange={handleRepositoryChange}
+            />
+            <button
+              type="button"
+              onClick={loadData}
+              className="hud-glow border border-[var(--hud-accent)] bg-[var(--hud-bg-elevated)] px-4 py-2 font-mono text-xs uppercase tracking-wider text-[var(--hud-accent)] transition-all duration-200 hover:bg-[var(--hud-accent)] hover:text-[var(--hud-bg)] disabled:cursor-not-allowed disabled:opacity-40"
+              disabled={loading}
+            >
+              {loading ? "Syncing…" : "Sync Data"}
+            </button>
+            <button
+              type="button"
+              className="border border-[var(--hud-warning)] bg-[var(--hud-bg-elevated)] px-4 py-2 font-mono text-xs uppercase tracking-wider text-[var(--hud-warning)] transition-all duration-200 hover:bg-[var(--hud-warning)] hover:text-[var(--hud-bg)]"
+            >
+              Send Report
+            </button>
+            <button
+              type="button"
+              onClick={() => router.push("/feedback")}
+              className="border border-[var(--hud-accent)] bg-[var(--hud-bg-elevated)] px-4 py-2 font-mono text-xs uppercase tracking-wider text-[var(--hud-accent)] transition-all duration-200 hover:bg-[var(--hud-accent)] hover:text-[var(--hud-bg)]"
+            >
+              Feedback
+            </button>
           </div>
         </header>
 
@@ -669,6 +698,10 @@ export default function ManagerDashboard() {
                 </div>
               </section>
             )}
+
+            <section>
+              <DatadogErrorsSection owner={selectedRepository.owner} name={selectedRepository.name} />
+            </section>
           </>
         )}
       </main>
