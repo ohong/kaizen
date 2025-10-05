@@ -1,5 +1,5 @@
 # Kaizen
-Kaizen use AI to analyse developer impact and offer an actionable theory of improvement.
+Kaizen use AI to analyse developer impact and offer an actionable theory of improvement. [Demo video.](https://www.loom.com/share/2616eeba1ae842a4b47d912505e43bed?sid=96108167-f381-49a5-8e41-3a8a4537f338)
 
 ## What is Kaizen?
 
