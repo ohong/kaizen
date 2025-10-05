@@ -30,6 +30,7 @@ import {
   RadarChartViz,
   ScatterChartViz,
 } from "@/components/charts";
+import DatadogErrorsSection from "@/components/DatadogErrorsSection";
 
 interface HealthSummary {
   healthScore: number | null;
@@ -80,17 +81,17 @@ export default function ManagerDashboard() {
     try {
       const [prResult, devResult, repoResult] = await Promise.all([
         supabase
-          .from<PullRequest>("pull_requests")
+          .from("pull_requests")
           .select("*")
           .eq("repository_owner", selectedRepository.owner)
           .eq("repository_name", selectedRepository.name)
           .order("updated_at", { ascending: false }),
         supabase
-          .from<DeveloperMetrics>("developer_metrics")
+          .from("developer_metrics")
           .select("*")
           .eq("repository_owner", selectedRepository.owner)
           .eq("repository_name", selectedRepository.name),
-        supabase.from<RepositoryMetrics>("repository_metrics").select("*"),
+        supabase.from("repository_metrics").select("*"),
       ]);
 
       if (prResult.error) throw prResult.error;
@@ -656,6 +657,10 @@ export default function ManagerDashboard() {
                 </div>
               </section>
             )}
+
+            <section>
+              <DatadogErrorsSection owner={selectedRepository.owner} name={selectedRepository.name} />
+            </section>
           </>
         )}
       </main>

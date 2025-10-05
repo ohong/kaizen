@@ -126,6 +126,47 @@ export interface Database {
           synced_at?: string;
         };
       };
+      datadog_errors: {
+        Row: {
+          id: number;
+          datadog_event_id: string;
+          occurred_at: string;
+          status: string | null;
+          service: string | null;
+          env: string | null;
+          message: string | null;
+          tags: string[] | null;
+          attributes: any | null;
+          inserted_at: string;
+          repository_id: string; // uuid
+        };
+        Insert: {
+          id?: number;
+          datadog_event_id: string;
+          occurred_at: string;
+          status?: string | null;
+          service?: string | null;
+          env?: string | null;
+          message?: string | null;
+          tags?: string[] | null;
+          attributes?: any | null;
+          inserted_at?: string;
+          repository_id: string;
+        };
+        Update: {
+          id?: number;
+          datadog_event_id?: string;
+          occurred_at?: string;
+          status?: string | null;
+          service?: string | null;
+          env?: string | null;
+          message?: string | null;
+          tags?: string[] | null;
+          attributes?: any | null;
+          inserted_at?: string;
+          repository_id?: string;
+        };
+      };
       repositories: {
         Row: {
           id: string;
@@ -227,3 +268,6 @@ export type RepositoryInsert = Database['public']['Tables']['repositories']['Ins
 export type RepositoryUpdate = Database['public']['Tables']['repositories']['Update'];
 export type DeveloperMetrics = Database['public']['Views']['developer_metrics']['Row'];
 export type RepositoryMetrics = Database['public']['Views']['repository_metrics']['Row'];
+export type DatadogError = Database['public']['Tables']['datadog_errors']['Row'];
+export type DatadogErrorInsert = Database['public']['Tables']['datadog_errors']['Insert'];
+export type DatadogErrorUpdate = Database['public']['Tables']['datadog_errors']['Update'];
