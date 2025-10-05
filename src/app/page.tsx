@@ -20,12 +20,7 @@ import {
   generateReviewTimeVsMergeTimeScatter,
   type ComparisonInsight,
 } from "@/lib/metrics";
-import type {
-  DeveloperMetrics,
-  PullRequest,
-  RepositoryMetrics,
-  DatadogError,
-} from "@/lib/types/database";
+import type { DeveloperMetrics, PullRequest, RepositoryMetrics } from "@/lib/types/database";
 import {
   ComparisonBarChart,
   DistributionChart,
@@ -137,10 +132,7 @@ export default function ManagerDashboard() {
   const [errorsSummary, setErrorsSummary] = useState<ErrorsSummary | null>(null);
   const [errorsSummaryLoading, setErrorsSummaryLoading] = useState(false);
 
-  const selectedRepository = useMemo(
-    () => parseRepositoryFromUrl(searchParams),
-    [searchParams]
-  );
+  const selectedRepository = useMemo(() => parseRepositoryFromUrl(searchParams), [searchParams]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -212,16 +204,11 @@ export default function ManagerDashboard() {
       return [];
     }
 
-    return developerMetrics.map((dm) =>
-      calculateDeveloperEfficiency(dm, repositoryMetrics)
-    );
+    return developerMetrics.map((dm) => calculateDeveloperEfficiency(dm, repositoryMetrics));
   }, [developerMetrics, repositoryMetrics]);
 
   const sortedDevelopers = useMemo(
-    () =>
-      [...developerEfficiencies].sort(
-        (a, b) => b.overallScore - a.overallScore
-      ),
+    () => [...developerEfficiencies].sort((a, b) => b.overallScore - a.overallScore),
     [developerEfficiencies]
   );
 
@@ -231,10 +218,7 @@ export default function ManagerDashboard() {
       return;
     }
 
-    if (
-      !selectedDeveloper ||
-      !sortedDevelopers.some((dev) => dev.author === selectedDeveloper)
-    ) {
+    if (!selectedDeveloper || !sortedDevelopers.some((dev) => dev.author === selectedDeveloper)) {
       setSelectedDeveloper(sortedDevelopers[0].author);
     }
   }, [sortedDevelopers, selectedDeveloper]);
@@ -243,10 +227,7 @@ export default function ManagerDashboard() {
     if (!sortedDevelopers.length) {
       return null;
     }
-    return (
-      sortedDevelopers.find((dev) => dev.author === selectedDeveloper) ??
-      sortedDevelopers[0]
-    );
+    return sortedDevelopers.find((dev) => dev.author === selectedDeveloper) ?? sortedDevelopers[0];
   }, [sortedDevelopers, selectedDeveloper]);
 
   const developerRadarData = useMemo(() => {
@@ -255,15 +236,20 @@ export default function ManagerDashboard() {
     return [
       { dimension: "Velocity", value: selectedDeveloperData.velocityScore.score, fullMark: 100 },
       { dimension: "Quality", value: selectedDeveloperData.qualityScore.score, fullMark: 100 },
-      { dimension: "Collaboration", value: selectedDeveloperData.collaborationScore.score, fullMark: 100 },
-      { dimension: "Consistency", value: selectedDeveloperData.consistencyScore.score, fullMark: 100 },
+      {
+        dimension: "Collaboration",
+        value: selectedDeveloperData.collaborationScore.score,
+        fullMark: 100,
+      },
+      {
+        dimension: "Consistency",
+        value: selectedDeveloperData.consistencyScore.score,
+        fullMark: 100,
+      },
     ];
   }, [selectedDeveloperData]);
 
-  const topDevelopers = useMemo(
-    () => sortedDevelopers.slice(0, 5),
-    [sortedDevelopers]
-  );
+  const topDevelopers = useMemo(() => sortedDevelopers.slice(0, 5), [sortedDevelopers]);
 
   const improvementCandidates = useMemo(() => {
     if (sortedDevelopers.length <= 3) {
@@ -272,15 +258,9 @@ export default function ManagerDashboard() {
     return sortedDevelopers.slice(-3).reverse();
   }, [sortedDevelopers]);
 
-  const healthSummary = useMemo(
-    () => computeTeamHealth(repoMetrics, prs),
-    [repoMetrics, prs]
-  );
+  const healthSummary = useMemo(() => computeTeamHealth(repoMetrics, prs), [repoMetrics, prs]);
 
-  const actionGroups = useMemo(
-    () => buildActionGroups(prs),
-    [prs]
-  );
+  const actionGroups = useMemo(() => buildActionGroups(prs), [prs]);
 
   const latestSync = useMemo(() => computeLatestSync(prs), [prs]);
 
@@ -293,15 +273,9 @@ export default function ManagerDashboard() {
     ];
   }, [repoMetrics]);
 
-  const sizeVsTimeData = useMemo(
-    () => generateSizeVsTimeScatter(prs),
-    [prs]
-  );
+  const sizeVsTimeData = useMemo(() => generateSizeVsTimeScatter(prs), [prs]);
 
-  const reviewVsMergeData = useMemo(
-    () => generateReviewTimeVsMergeTimeScatter(prs),
-    [prs]
-  );
+  const reviewVsMergeData = useMemo(() => generateReviewTimeVsMergeTimeScatter(prs), [prs]);
 
   const comparisonInsights = useMemo<ComparisonInsight[]>(() => {
     if (!repoMetrics || !benchmarkRepos.length) return [];
@@ -571,12 +545,16 @@ export default function ManagerDashboard() {
   );
 
   return (
-    <CopilotSidebar
-      instructions={COPILOT_INSTRUCTIONS}
-      labels={COPILOT_LABELS}
-      defaultOpen={false}
-    >
-      <div className="relative min-h-screen bg-[var(--hud-bg)] text-[var(--hud-text)]">
+    <>
+      <CopilotSidebar
+        clickOutsideToClose={false}
+        defaultOpen={true}
+        labels={{
+          title: "Popup Assistant",
+          initial: "Hi",
+        }}
+      >
+        <div className="relative min-h-screen bg-[var(--hud-bg)] text-[var(--hud-text)]">
           <div className="pointer-events-none fixed top-0 left-0 z-0 h-16 w-16 border-l-2 border-t-2 border-[var(--hud-accent)] opacity-30" />
           <div className="pointer-events-none fixed top-0 right-0 z-0 h-16 w-16 border-r-2 border-t-2 border-[var(--hud-accent)] opacity-30" />
           <div className="pointer-events-none fixed bottom-0 left-0 z-0 h-16 w-16 border-b-2 border-l-2 border-[var(--hud-accent)] opacity-30" />
@@ -596,12 +574,7 @@ export default function ManagerDashboard() {
                 <div className="font-mono text-xs uppercase tracking-[0.35em] text-[var(--hud-text-dim)]">
                   <span className="text-[var(--hud-accent)]">▸</span>{" "}
                   {`${selectedRepository.owner}/${selectedRepository.name}`.toUpperCase()}
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="font-mono text-xs text-[var(--hud-text-dim)] uppercase tracking-wider">
-                Last Sync:{" "}
-                {latestSync ? formatDateTime(latestSync).toUpperCase() : "—"}
+                </div>
               </div>
               <div className="hidden h-8 w-px bg-[var(--hud-border)] sm:block" />
               <RepositorySelector
@@ -624,6 +597,13 @@ export default function ManagerDashboard() {
                 className="border border-[var(--hud-warning)] bg-[var(--hud-bg-elevated)] px-4 py-2 font-mono text-xs uppercase tracking-wider text-[var(--hud-warning)] transition-all duration-200 hover:bg-[var(--hud-warning)] hover:text-[var(--hud-bg)]"
               >
                 Send Report
+              </button>
+              <button
+                type="button"
+                onClick={() => router.push("/feedback")}
+                className="border border-[var(--hud-accent)] bg-[var(--hud-bg-elevated)] px-4 py-2 font-mono text-xs uppercase tracking-wider text-[var(--hud-accent)] transition-all duration-200 hover:bg-[var(--hud-accent)] hover:text-[var(--hud-bg)]"
+              >
+                Feedback
               </button>
             </div>
             <div className="hidden h-8 w-px bg-[var(--hud-border)] sm:block" />
@@ -714,258 +694,330 @@ export default function ManagerDashboard() {
                       {healthSummary.healthScore !== null ? healthSummary.healthScore : "—"}
                     </p>
                   </div>
-                </div>
-
-                <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-                  <SummaryStat
-                    label="Throughput / week"
-                    value={healthSummary.throughputPerWeek !== null ? `${healthSummary.throughputPerWeek.toFixed(1)}` : "—"}
-                    suffix=" PRs"
-                  />
-                  <SummaryStat
-                    label="Active contributors"
-                    value={healthSummary.activeContributors !== null ? formatInteger(healthSummary.activeContributors) : "—"}
-                  />
-                  <SummaryStat
-                    label="Avg first review"
-                    value={formatHours(healthSummary.avgTimeToFirstReview)}
-                  />
-                  <SummaryStat
-                    label="Avg merge time"
-                    value={formatHours(healthSummary.avgMergeHours)}
-                  />
-                  <SummaryStat
-                    label="Merge rate"
-                    value={formatPercent(healthSummary.mergeRate)}
-                  />
-                  <SummaryStat
-                    label="Small PR share"
-                    value={formatPercent(healthSummary.smallPRShare)}
-                  />
-                </div>
-
-                <div className="mt-6">
-                  <p className="font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
-                    Open PR backlog
+                  <h1 className="text-4xl font-semibold text-[var(--hud-text-bright)]">
+                    Delivery Control Tower
+                  </h1>
+                  <p className="max-w-3xl text-sm text-[var(--hud-text-dim)]">
+                    One view of how quickly we ship, where work is stalling, and which teammates
+                    need support. Built for the engineering manager to steer the Supabase platform
+                    team.
                   </p>
-                  <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                    {healthSummary.backlogBuckets.map((bucket) => (
-                      <BacklogPill
-                        key={bucket.label}
-                        label={bucket.label}
-                        count={bucket.count}
-                        total={healthSummary.openPrCount}
-                      />
-                    ))}
-                  </div>
                 </div>
-              </div>
-
-              <div className="grid gap-4">
-                <FocusList
-                  title="Focus this sprint"
-                  items={healthSummary.focusAreas}
-                  emptyLabel="No urgent risks detected"
-                  tone="warning"
-                />
-                <FocusList
-                  title="What’s working"
-                  items={healthSummary.wins}
-                  emptyLabel="We need more data to celebrate wins"
-                  tone="positive"
-                />
+                <div className="min-w-[220px] rounded-lg border border-[var(--hud-border)] bg-[var(--hud-bg)] px-4 py-3 text-right">
+                  <p className="font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
+                    Viewing Repository
+                  </p>
+                  <p className="mt-2 font-mono text-sm text-[var(--hud-text-bright)]">
+                    {selectedRepository.owner}/{selectedRepository.name}
+                  </p>
+                </div>
               </div>
             </section>
 
-            <section>
-              <h2 className="mb-4 text-xl font-semibold text-[var(--hud-text-bright)]">
-                Action queue
-              </h2>
-              {actionGroups.length === 0 ? (
-                <div className="hud-panel hud-corner p-6 text-sm text-[var(--hud-text-dim)]">
-                  No blocking pull requests right now. Keep the flow moving.
-                </div>
-              ) : (
-                <div className="grid gap-4 lg:grid-cols-3">
-                  {actionGroups.map((group) => (
-                    <ActionGroupCard key={group.key} group={group} />
-                  ))}
-                </div>
-              )}
-            </section>
+            {error && (
+              <div className="hud-panel hud-corner border border-[var(--hud-danger)]/40 bg-[var(--hud-danger)]/15 px-4 py-3 text-sm text-[var(--hud-text-bright)]">
+                {error}
+              </div>
+            )}
 
-            <section className="grid gap-6 xl:grid-cols-[420px_1fr]">
-              <div className="hud-panel hud-corner p-6">
-                <p className="font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
-                  Top performers
-                </p>
-                <div className="mt-3 grid gap-3">
-                  {topDevelopers.map((dev, index) => (
-                    <button
-                      key={dev.author}
-                      type="button"
-                      onClick={() => setSelectedDeveloper(dev.author)}
-                      className={`flex items-center justify-between rounded-xl border px-4 py-3 text-left transition-all duration-200 ${
-                        selectedDeveloper === dev.author
-                          ? "border-[var(--hud-accent)]/50 bg-[var(--hud-accent)]/10"
-                          : "border-[var(--hud-border)] bg-[var(--hud-bg)] hover:border-[var(--hud-accent)]/40 hover:bg-[var(--hud-bg-elevated)]"
-                      }`}
-                    >
+            {loading && prs.length === 0 ? (
+              <div className="hud-panel hud-corner p-12 text-center text-sm text-[var(--hud-text-dim)]">
+                Loading data for the control tower…
+              </div>
+            ) : (
+              <>
+                <section className="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+                  <div className="hud-panel hud-corner p-6">
+                    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                       <div>
-                        <p className="text-sm font-medium text-[var(--hud-text-bright)]">
-                          {dev.author}
+                        <p className="font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
+                          Team delivery health
                         </p>
-                        <p className="text-xs text-[var(--hud-text-dim)]">
-                          Overall {dev.overallScore}
+                        <h2 className="mt-2 text-2xl font-semibold text-[var(--hud-text-bright)]">
+                          {healthSummary.summary}
+                        </h2>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
+                          Composite score
+                        </p>
+                        <p className="text-4xl font-semibold text-[var(--hud-accent)]">
+                          {healthSummary.healthScore !== null ? healthSummary.healthScore : "—"}
                         </p>
                       </div>
-                      <span className="font-mono text-lg font-semibold text-[var(--hud-accent)]">
-                        #{index + 1}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-
-                <p className="mt-6 font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
-                  Needs attention
-                </p>
-                <div className="mt-3 space-y-2">
-                  {improvementCandidates.map((dev) => (
-                    <div
-                      key={`${dev.author}-needs-attention`}
-                      className="flex items-center justify-between rounded-lg border border-[var(--hud-border)] bg-[var(--hud-bg)] px-4 py-2"
-                    >
-                      <div>
-                        <p className="text-sm font-medium text-[var(--hud-text-bright)]">
-                          {dev.author}
-                        </p>
-                        <p className="text-xs text-[var(--hud-text-dim)]">
-                          Score {dev.overallScore}
-                        </p>
-                      </div>
-                      <span className="font-mono text-xs uppercase tracking-wider text-[var(--hud-warning)]">
-                        Coaching opportunity
-                      </span>
                     </div>
-                  ))}
-                </div>
-              </div>
 
-              <div className="grid gap-6">
-                <div className="grid gap-6 lg:grid-cols-2">
-                  <div className="h-[320px] hud-panel hud-corner p-4">
-                    <RadarChartViz
-                      data={developerRadarData}
-                      title={selectedDeveloper ? `${selectedDeveloper} - efficiency profile` : "Efficiency profile"}
-                      name={selectedDeveloper || "Developer"}
-                      color="#8b5cf6"
+                    <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+                      <SummaryStat
+                        label="Throughput / week"
+                        value={
+                          healthSummary.throughputPerWeek !== null
+                            ? `${healthSummary.throughputPerWeek.toFixed(1)}`
+                            : "—"
+                        }
+                        suffix=" PRs"
+                      />
+                      <SummaryStat
+                        label="Active contributors"
+                        value={
+                          healthSummary.activeContributors !== null
+                            ? formatInteger(healthSummary.activeContributors)
+                            : "—"
+                        }
+                      />
+                      <SummaryStat
+                        label="Avg first review"
+                        value={formatHours(healthSummary.avgTimeToFirstReview)}
+                      />
+                      <SummaryStat
+                        label="Avg merge time"
+                        value={formatHours(healthSummary.avgMergeHours)}
+                      />
+                      <SummaryStat
+                        label="Merge rate"
+                        value={formatPercent(healthSummary.mergeRate)}
+                      />
+                      <SummaryStat
+                        label="Small PR share"
+                        value={formatPercent(healthSummary.smallPRShare)}
+                      />
+                    </div>
+
+                    <div className="mt-6">
+                      <p className="font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
+                        Open PR backlog
+                      </p>
+                      <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                        {healthSummary.backlogBuckets.map((bucket) => (
+                          <BacklogPill
+                            key={bucket.label}
+                            label={bucket.label}
+                            count={bucket.count}
+                            total={healthSummary.openPrCount}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4">
+                    <FocusList
+                      title="Focus this sprint"
+                      items={healthSummary.focusAreas}
+                      emptyLabel="No urgent risks detected"
+                      tone="warning"
+                    />
+                    <FocusList
+                      title="What’s working"
+                      items={healthSummary.wins}
+                      emptyLabel="We need more data to celebrate wins"
+                      tone="positive"
                     />
                   </div>
-                  {selectedDeveloperData && (
-                    <div className="grid gap-4">
-                      <ScoreCard
-                        title="Velocity"
-                        score={selectedDeveloperData.velocityScore.score}
-                        percentile={selectedDeveloperData.velocityScore.percentile}
-                        interpretation={selectedDeveloperData.velocityScore.interpretation}
-                        recommendation={selectedDeveloperData.velocityScore.recommendation}
-                      />
-                      <ScoreCard
-                        title="Quality"
-                        score={selectedDeveloperData.qualityScore.score}
-                        percentile={selectedDeveloperData.qualityScore.percentile}
-                        interpretation={selectedDeveloperData.qualityScore.interpretation}
-                        recommendation={selectedDeveloperData.qualityScore.recommendation}
-                      />
+                </section>
+
+                <section>
+                  <h2 className="mb-4 text-xl font-semibold text-[var(--hud-text-bright)]">
+                    Action queue
+                  </h2>
+                  {actionGroups.length === 0 ? (
+                    <div className="hud-panel hud-corner p-6 text-sm text-[var(--hud-text-dim)]">
+                      No blocking pull requests right now. Keep the flow moving.
+                    </div>
+                  ) : (
+                    <div className="grid gap-4 lg:grid-cols-3">
+                      {actionGroups.map((group) => (
+                        <ActionGroupCard key={group.key} group={group} />
+                      ))}
                     </div>
                   )}
-                </div>
-                {selectedDeveloperData && (
-                  <div className="grid gap-4 lg:grid-cols-2">
-                    <ScoreCard
-                      title="Collaboration"
-                      score={selectedDeveloperData.collaborationScore.score}
-                      percentile={selectedDeveloperData.collaborationScore.percentile}
-                      interpretation={selectedDeveloperData.collaborationScore.interpretation}
-                      recommendation={selectedDeveloperData.collaborationScore.recommendation}
-                    />
-                    <ScoreCard
-                      title="Consistency"
-                      score={selectedDeveloperData.consistencyScore.score}
-                      percentile={selectedDeveloperData.consistencyScore.percentile}
-                      interpretation={selectedDeveloperData.consistencyScore.interpretation}
-                      recommendation={selectedDeveloperData.consistencyScore.recommendation}
+                </section>
+
+                <section className="grid gap-6 xl:grid-cols-[420px_1fr]">
+                  <div className="hud-panel hud-corner p-6">
+                    <p className="font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
+                      Top performers
+                    </p>
+                    <div className="mt-3 grid gap-3">
+                      {topDevelopers.map((dev, index) => (
+                        <button
+                          key={dev.author}
+                          type="button"
+                          onClick={() => setSelectedDeveloper(dev.author)}
+                          className={`flex items-center justify-between rounded-xl border px-4 py-3 text-left transition-all duration-200 ${
+                            selectedDeveloper === dev.author
+                              ? "border-[var(--hud-accent)]/50 bg-[var(--hud-accent)]/10"
+                              : "border-[var(--hud-border)] bg-[var(--hud-bg)] hover:border-[var(--hud-accent)]/40 hover:bg-[var(--hud-bg-elevated)]"
+                          }`}
+                        >
+                          <div>
+                            <p className="text-sm font-medium text-[var(--hud-text-bright)]">
+                              {dev.author}
+                            </p>
+                            <p className="text-xs text-[var(--hud-text-dim)]">
+                              Overall {dev.overallScore}
+                            </p>
+                          </div>
+                          <span className="font-mono text-lg font-semibold text-[var(--hud-accent)]">
+                            #{index + 1}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+
+                    <p className="mt-6 font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
+                      Needs attention
+                    </p>
+                    <div className="mt-3 space-y-2">
+                      {improvementCandidates.map((dev) => (
+                        <div
+                          key={`${dev.author}-needs-attention`}
+                          className="flex items-center justify-between rounded-lg border border-[var(--hud-border)] bg-[var(--hud-bg)] px-4 py-2"
+                        >
+                          <div>
+                            <p className="text-sm font-medium text-[var(--hud-text-bright)]">
+                              {dev.author}
+                            </p>
+                            <p className="text-xs text-[var(--hud-text-dim)]">
+                              Score {dev.overallScore}
+                            </p>
+                          </div>
+                          <span className="font-mono text-xs uppercase tracking-wider text-[var(--hud-warning)]">
+                            Coaching opportunity
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid gap-6">
+                    <div className="grid gap-6 lg:grid-cols-2">
+                      <div className="h-[320px] hud-panel hud-corner p-4">
+                        <RadarChartViz
+                          data={developerRadarData}
+                          title={
+                            selectedDeveloper
+                              ? `${selectedDeveloper} - efficiency profile`
+                              : "Efficiency profile"
+                          }
+                          name={selectedDeveloper || "Developer"}
+                          color="#8b5cf6"
+                        />
+                      </div>
+                      {selectedDeveloperData && (
+                        <div className="grid gap-4">
+                          <ScoreCard
+                            title="Velocity"
+                            score={selectedDeveloperData.velocityScore.score}
+                            percentile={selectedDeveloperData.velocityScore.percentile}
+                            interpretation={selectedDeveloperData.velocityScore.interpretation}
+                            recommendation={selectedDeveloperData.velocityScore.recommendation}
+                          />
+                          <ScoreCard
+                            title="Quality"
+                            score={selectedDeveloperData.qualityScore.score}
+                            percentile={selectedDeveloperData.qualityScore.percentile}
+                            interpretation={selectedDeveloperData.qualityScore.interpretation}
+                            recommendation={selectedDeveloperData.qualityScore.recommendation}
+                          />
+                        </div>
+                      )}
+                    </div>
+                    {selectedDeveloperData && (
+                      <div className="grid gap-4 lg:grid-cols-2">
+                        <ScoreCard
+                          title="Collaboration"
+                          score={selectedDeveloperData.collaborationScore.score}
+                          percentile={selectedDeveloperData.collaborationScore.percentile}
+                          interpretation={selectedDeveloperData.collaborationScore.interpretation}
+                          recommendation={selectedDeveloperData.collaborationScore.recommendation}
+                        />
+                        <ScoreCard
+                          title="Consistency"
+                          score={selectedDeveloperData.consistencyScore.score}
+                          percentile={selectedDeveloperData.consistencyScore.percentile}
+                          interpretation={selectedDeveloperData.consistencyScore.interpretation}
+                          recommendation={selectedDeveloperData.consistencyScore.recommendation}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </section>
+
+                <section>
+                  <h2 className="mb-4 text-xl font-semibold text-[var(--hud-text-bright)]">
+                    Workflow signals
+                  </h2>
+                  <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
+                    <div className="h-[360px] hud-panel hud-corner p-4">
+                      <ScatterChartViz
+                        data={sizeVsTimeData}
+                        xLabel="PR size (additions + deletions)"
+                        yLabel="Time to merge"
+                        title="PR size vs merge time"
+                        xUnit=" lines"
+                        yUnit=" h"
+                      />
+                    </div>
+                    <div className="h-[360px] hud-panel hud-corner p-4">
+                      <ScatterChartViz
+                        data={reviewVsMergeData}
+                        xLabel="Time to first review"
+                        yLabel="Time to merge"
+                        title="Review responsiveness"
+                        xUnit=" h"
+                        yUnit=" h"
+                      />
+                    </div>
+                    <div className="h-[360px] hud-panel hud-corner p-4">
+                      <DistributionChart
+                        data={prSizeDistribution}
+                        title="PR size distribution"
+                        yLabel="Number of PRs"
+                      />
+                    </div>
+                  </div>
+                </section>
+
+                <section className="grid gap-6 xl:grid-cols-2">
+                  <div className="h-[420px] hud-panel hud-corner p-4">
+                    <ComparisonBarChart
+                      data={comparisonSpeedData}
+                      title="Cycle time vs industry"
+                      yLabel="Hours"
+                      valueUnit=""
+                      lowerIsBetter
                     />
                   </div>
+                  <div className="h-[420px] hud-panel hud-corner p-4">
+                    <ComparisonBarChart
+                      data={comparisonQualityData}
+                      title="Quality signals vs industry"
+                      yLabel="Value"
+                    />
+                  </div>
+                </section>
+
+                {comparisonInsights.length > 0 && (
+                  <section>
+                    <h2 className="mb-4 text-xl font-semibold text-[var(--hud-text-bright)]">
+                      Benchmark insights
+                    </h2>
+                    <div className="grid gap-4 lg:grid-cols-2">
+                      {comparisonInsights.map((insight) => (
+                        <InsightCard key={insight.metric} insight={insight} />
+                      ))}
+                    </div>
+                  </section>
                 )}
-              </div>
-            </section>
 
-            <section>
-              <h2 className="mb-4 text-xl font-semibold text-[var(--hud-text-bright)]">
-                Workflow signals
-              </h2>
-              <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
-                <div className="h-[360px] hud-panel hud-corner p-4">
-                  <ScatterChartViz
-                    data={sizeVsTimeData}
-                    xLabel="PR size (additions + deletions)"
-                    yLabel="Time to merge"
-                    title="PR size vs merge time"
-                    xUnit=" lines"
-                    yUnit=" h"
+                <section>
+                  <DatadogErrorsSection
+                    owner={selectedRepository.owner}
+                    name={selectedRepository.name}
                   />
-                </div>
-                <div className="h-[360px] hud-panel hud-corner p-4">
-                  <ScatterChartViz
-                    data={reviewVsMergeData}
-                    xLabel="Time to first review"
-                    yLabel="Time to merge"
-                    title="Review responsiveness"
-                    xUnit=" h"
-                    yUnit=" h"
-                  />
-                </div>
-                <div className="h-[360px] hud-panel hud-corner p-4">
-                  <DistributionChart
-                    data={prSizeDistribution}
-                    title="PR size distribution"
-                    yLabel="Number of PRs"
-                  />
-                </div>
-              </div>
-            </section>
-
-            <section className="grid gap-6 xl:grid-cols-2">
-              <div className="h-[420px] hud-panel hud-corner p-4">
-                <ComparisonBarChart
-                  data={comparisonSpeedData}
-                  title="Cycle time vs industry"
-                  yLabel="Hours"
-                  valueUnit=""
-                  lowerIsBetter
-                />
-              </div>
-              <div className="h-[420px] hud-panel hud-corner p-4">
-                <ComparisonBarChart
-                  data={comparisonQualityData}
-                  title="Quality signals vs industry"
-                  yLabel="Value"
-                />
-              </div>
-            </section>
-
-            {comparisonInsights.length > 0 && (
-              <section>
-                <h2 className="mb-4 text-xl font-semibold text-[var(--hud-text-bright)]">
-                  Benchmark insights
-                </h2>
-                <div className="grid gap-4 lg:grid-cols-2">
-                  {comparisonInsights.map((insight) => (
-                    <InsightCard key={insight.metric} insight={insight} />
-                  ))}
-                </div>
-              </section>
+                </section>
+              </>
             )}
 
             <section>
@@ -1112,15 +1164,7 @@ export default function ManagerDashboard() {
   );
 }
 
-function SummaryStat({
-  label,
-  value,
-  suffix,
-}: {
-  label: string;
-  value: string;
-  suffix?: string;
-}) {
+function SummaryStat({ label, value, suffix }: { label: string; value: string; suffix?: string }) {
   return (
     <div className="hud-panel hud-corner p-5">
       <p className="font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
@@ -1134,15 +1178,7 @@ function SummaryStat({
   );
 }
 
-function BacklogPill({
-  label,
-  count,
-  total,
-}: {
-  label: string;
-  count: number;
-  total: number;
-}) {
+function BacklogPill({ label, count, total }: { label: string; count: number; total: number }) {
   const percentage = total > 0 ? Math.round((count / total) * 100) : 0;
   return (
     <div className="hud-panel hud-corner p-5">
@@ -1258,17 +1294,15 @@ function ScoreCard({
     score >= 80
       ? "text-emerald-400"
       : score >= 60
-      ? "text-blue-400"
-      : score >= 40
-      ? "text-amber-400"
-      : "text-red-400";
+        ? "text-blue-400"
+        : score >= 40
+          ? "text-amber-400"
+          : "text-red-400";
 
   return (
     <div className="hud-panel hud-corner p-5">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-[var(--hud-text-bright)]">
-          {title}
-        </h3>
+        <h3 className="text-sm font-semibold text-[var(--hud-text-bright)]">{title}</h3>
         <div className="text-right">
           <p className={`text-2xl font-semibold ${scoreColor}`}>{Math.round(score)}</p>
           <p className="font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
@@ -1291,9 +1325,7 @@ function InsightCard({ insight }: { insight: ComparisonInsight }) {
   return (
     <div className="hud-panel hud-corner p-5">
       <div className="flex items-start justify-between">
-        <h3 className="text-sm font-semibold text-[var(--hud-text-bright)]">
-          {insight.metric}
-        </h3>
+        <h3 className="text-sm font-semibold text-[var(--hud-text-bright)]">{insight.metric}</h3>
         <span className="font-mono text-xs uppercase tracking-wider text-[var(--hud-accent)]">
           {insight.percentile}th pct
         </span>
@@ -1317,9 +1349,7 @@ function InsightCard({ insight }: { insight: ComparisonInsight }) {
           <p className="font-mono text-[11px] uppercase tracking-wider text-[var(--hud-text-dim)]">
             Top 10%
           </p>
-          <p className="mt-1 text-[var(--hud-accent)]">
-            {insight.industryTop10.toFixed(1)}
-          </p>
+          <p className="mt-1 text-[var(--hud-accent)]">{insight.industryTop10.toFixed(1)}</p>
         </div>
       </div>
       <p className="mt-4 text-sm text-[var(--hud-text)]">{insight.interpretation}</p>
@@ -1342,9 +1372,7 @@ function RepositorySelector({
   const selectedRepo = repositories.find(
     (repo) => repo.owner === selectedOwner && repo.name === selectedName
   );
-  const label = selectedRepo
-    ? selectedRepo.fullName
-    : `${selectedOwner}/${selectedName}`;
+  const label = selectedRepo ? selectedRepo.fullName : `${selectedOwner}/${selectedName}`;
 
   if (repositories.length === 0) {
     return null;
@@ -1370,18 +1398,13 @@ function RepositorySelector({
 
       {isOpen && (
         <>
-          <div
-            className="fixed inset-0 z-10"
-            onClick={() => setIsOpen(false)}
-          />
+          <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
           <div className="absolute right-0 z-20 mt-2 w-80 rounded-xl border border-[var(--hud-border)] bg-[var(--hud-bg)] shadow-[0_20px_45px_rgba(0,0,0,0.45)]">
             <div className="max-h-96 overflow-y-auto p-2">
               {repositories.map((repo) => {
-                const isSelected =
-                  repo.owner === selectedOwner && repo.name === selectedName;
+                const isSelected = repo.owner === selectedOwner && repo.name === selectedName;
                 const isDefault =
-                  repo.owner === DEFAULT_REPO.owner &&
-                  repo.name === DEFAULT_REPO.name;
+                  repo.owner === DEFAULT_REPO.owner && repo.name === DEFAULT_REPO.name;
 
                 return (
                   <button
@@ -1426,9 +1449,7 @@ function RepositorySelector({
                       </p>
                     )}
                     <div className="mt-1 flex items-center gap-3 text-[10px] text-[var(--hud-text-dim)]">
-                      {repo.prCount !== undefined && (
-                        <span>{formatInteger(repo.prCount)} PRs</span>
-                      )}
+                      {repo.prCount !== undefined && <span>{formatInteger(repo.prCount)} PRs</span>}
                       {repo.contributorCount !== undefined && (
                         <span>{repo.contributorCount} contributors</span>
                       )}
@@ -1472,13 +1493,11 @@ function computeTeamHealth(
   }
 
   const throughputPerWeek = repoMetrics.data_span_days
-    ? repoMetrics.total_prs /
-      Math.max(repoMetrics.data_span_days / 7, 1)
+    ? repoMetrics.total_prs / Math.max(repoMetrics.data_span_days / 7, 1)
     : null;
   const mergeRate = repoMetrics.merge_rate_percent ?? null;
   const avgMergeHours = repoMetrics.avg_merge_hours ?? null;
-  const avgTimeToFirstReview =
-    repoMetrics.avg_time_to_first_review_hours ?? null;
+  const avgTimeToFirstReview = repoMetrics.avg_time_to_first_review_hours ?? null;
   const avgReviewsPerPR = repoMetrics.avg_reviews_per_pr ?? null;
   const activeContributors = repoMetrics.active_contributors ?? null;
   const smallPRShare = repoMetrics.total_prs
@@ -1489,25 +1508,15 @@ function computeTeamHealth(
     : null;
 
   const throughputScore =
-    throughputPerWeek !== null
-      ? Math.min(100, (throughputPerWeek / 20) * 100)
-      : 60;
-  const mergeRateScore =
-    mergeRate !== null ? Math.min(100, (mergeRate / 90) * 100) : 60;
+    throughputPerWeek !== null ? Math.min(100, (throughputPerWeek / 20) * 100) : 60;
+  const mergeRateScore = mergeRate !== null ? Math.min(100, (mergeRate / 90) * 100) : 60;
   const mergeTimeScore =
-    avgMergeHours !== null
-      ? Math.max(0, 100 - (avgMergeHours / 48) * 100)
-      : 60;
+    avgMergeHours !== null ? Math.max(0, 100 - (avgMergeHours / 48) * 100) : 60;
   const reviewTimeScore =
-    avgTimeToFirstReview !== null
-      ? Math.max(0, 100 - (avgTimeToFirstReview / 12) * 100)
-      : 60;
+    avgTimeToFirstReview !== null ? Math.max(0, 100 - (avgTimeToFirstReview / 12) * 100) : 60;
 
   const healthScore = Math.round(
-    mergeRateScore * 0.3 +
-      mergeTimeScore * 0.3 +
-      reviewTimeScore * 0.2 +
-      throughputScore * 0.2
+    mergeRateScore * 0.3 + mergeTimeScore * 0.3 + reviewTimeScore * 0.2 + throughputScore * 0.2
   );
 
   let summary = "";
@@ -1585,9 +1594,7 @@ function buildActionGroups(prs: PullRequest[]): ActionGroup[] {
   const large = openPrs
     .filter((pr) => (pr.additions ?? 0) + (pr.deletions ?? 0) > 1200)
     .sort(
-      (a, b) =>
-        (b.additions ?? 0) + (b.deletions ?? 0) -
-        ((a.additions ?? 0) + (a.deletions ?? 0))
+      (a, b) => (b.additions ?? 0) + (b.deletions ?? 0) - ((a.additions ?? 0) + (a.deletions ?? 0))
     )
     .slice(0, 5);
 
@@ -1668,9 +1675,7 @@ function median(values: number[]): number {
   if (!values.length) return 0;
   const sorted = [...values].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 0
-    ? (sorted[mid - 1] + sorted[mid]) / 2
-    : sorted[mid];
+  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
 }
 
 function formatPercent(value: number | null): string {

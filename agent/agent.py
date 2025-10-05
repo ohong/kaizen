@@ -3,11 +3,7 @@ This is the main entry point for the agent.
 It defines the workflow graph, state, tools, nodes and edges.
 """
 
-import json
-import os
 from typing import Any, List
-
-import requests
 from typing_extensions import Literal
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, BaseMessage
@@ -17,6 +13,17 @@ from langgraph.graph import StateGraph, END
 from langgraph.types import Command
 from langgraph.graph import MessagesState
 from langgraph.prebuilt import ToolNode
+import os
+
+# Load system prompt from file
+SYSTEM_PROMPT_PATH = os.path.join(os.path.dirname(__file__), "..", "prompts", "sys-prompt.md")
+with open(SYSTEM_PROMPT_PATH, "r") as f:
+    SYSTEM_PROMPT = f.read()
+
+# Load survey data from file
+SURVEY_DATA_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "sample-survey-responses.md")
+with open(SURVEY_DATA_PATH, "r") as f:
+    SURVEY_DATA = f.read()
 
 class AgentState(MessagesState):
     """
@@ -26,111 +33,8 @@ class AgentState(MessagesState):
     the CopilotKitState fields. We're also adding a custom field, `language`,
     which will be used to set the language of the agent.
     """
-    proverbs: List[str] = []
     tools: List[Any]
     # your_custom_agent_state: str = ""
-
-SUPABASE_URL = os.environ.get("NEXT_PUBLIC_SUPABASE_URL")
-SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
-
-FORBIDDEN_SQL_KEYWORDS = {
-    "insert",
-    "update",
-    "delete",
-    "drop",
-    "alter",
-    "truncate",
-    "grant",
-    "revoke",
-}
-
-
-def _ensure_supabase_env() -> None:
-    if not SUPABASE_URL:
-        raise RuntimeError(
-            "Supabase SQL tool requires NEXT_PUBLIC_SUPABASE_URL to be set."
-        )
-    if not SUPABASE_SERVICE_ROLE_KEY:
-        raise RuntimeError(
-            "Supabase SQL tool requires SUPABASE_SERVICE_ROLE_KEY to be set."
-        )
-
-
-def _sanitize_query(query: str) -> str:
-    cleaned = query.strip()
-    if not cleaned:
-        raise ValueError("Query must not be empty.")
-
-    # Strip trailing semicolon if present (common in SQL syntax)
-    if cleaned.endswith(";"):
-        cleaned = cleaned[:-1].strip()
-
-    # Check for remaining semicolons (multiple statements)
-    if ";" in cleaned:
-        raise ValueError("Multiple SQL statements are not allowed.")
-
-    lowered = cleaned.lower()
-    if not lowered.startswith("select"):
-        raise ValueError("Only SELECT statements are permitted for Supabase SQL tool.")
-
-    if any(keyword in lowered for keyword in FORBIDDEN_SQL_KEYWORDS):
-        raise ValueError("Potentially destructive SQL detected; query blocked.")
-
-    return cleaned
-
-
-def _execute_supabase_query(sql: str) -> List[Any]:
-    _ensure_supabase_env()
-    endpoint = f"{SUPABASE_URL}/rest/v1/rpc/run_sql"
-    headers = {
-        "apikey": SUPABASE_SERVICE_ROLE_KEY,
-        "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-    }
-
-    try:
-        response = requests.post(
-            endpoint,
-            headers=headers,
-            json={"query": sql},
-            timeout=30,
-        )
-    except requests.RequestException as exc:
-        raise RuntimeError("Supabase SQL request failed to execute.") from exc
-
-    if response.status_code >= 400:
-        try:
-            payload = response.json()
-        except ValueError:
-            payload = {"message": response.text}
-        raise RuntimeError(f"Supabase SQL error: {payload}")
-
-    try:
-        data = response.json()
-    except ValueError as exc:
-        raise RuntimeError("Supabase SQL returned a non-JSON payload.") from exc
-
-    if data is None:
-        return []
-
-    if isinstance(data, list):
-        return data
-
-    return [data]
-
-
-@tool
-def run_supabase_sql(query: str) -> str:
-    """Execute a read-only SQL SELECT query against Supabase analytics tables and return JSON results."""
-
-    sanitized = _sanitize_query(query)
-    rows = _execute_supabase_query(sanitized)
-
-    if not rows:
-        return "[]"
-
-    return json.dumps(rows, indent=2, default=str)
 
 # @tool
 # def your_tool_here(your_arg: str):
@@ -139,7 +43,6 @@ def run_supabase_sql(query: str) -> str:
 #     return "Your tool response here."
 
 backend_tools = [
-    run_supabase_sql
     # your_tool_here
 ]
 
@@ -178,11 +81,7 @@ async def chat_node(state: AgentState, config: RunnableConfig) -> Command[Litera
 
     # 3. Define the system message by which the chat model will be run
     system_message = SystemMessage(
-        content=(
-            "You are Kaizen's delivery analytics copilot. Use Supabase's run_supabase_sql tool for data-driven "
-            "answers and rely on the GitHub MCP tools surfaced by the runtime to inspect repository activity. "
-            "Keep responses concise, note relevant metrics, and explain how the data supports your answer."
-        )
+        content=f"{SYSTEM_PROMPT}\n\n## Survey Data\n\n{SURVEY_DATA}"
     )
 
     # 4. Run the model to generate a response
