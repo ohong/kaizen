@@ -107,6 +107,7 @@ async def chat_node(state: AgentState, config: RunnableConfig) -> Command[Litera
             "messages": [response],
         }
     )
+    
 
 def route_to_tool_node(response: BaseMessage):
     """

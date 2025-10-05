@@ -10,7 +10,7 @@ Slowed down: Debugging a race condition in our Elixir realtime server. Copilot k
 
 **2. Energy/focus/flow:**
 
-Mixed bag. On good days when I'm doing straightforward CRUD or schema work, AI keeps me in flow—I don't context switch to docs as much. On hard days debugging distributed systems or optimizing queries, the constant autocomplete suggestions are noise that breaks my concentration. I've started disabling it completely when I need to think deeply. 
+Mixed bag. On good days when I'm doing straightforward CRUD or schema work, AI keeps me in flow—I don't context switch to docs as much. On hard days debugging distributed systems or optimizing queries, the constant autocomplete suggestions are noise that breaks my concentration. I've started disabling it completely when I need to think deeply.
 
 Mentally tired? Not really more or less, but differently tired. Less "ugh I have to write 50 lines of boilerplate" tired, more "did the AI just introduce a subtle bug I need to check for" tired.
 
@@ -50,7 +50,7 @@ Flow state: Worse. The autocomplete breaks my train of thought. I've mostly turn
 
 **3. After AI generates code:**
 
-I treat AI-generated code like junior engineer code—needs thorough review. 
+I treat AI-generated code like junior engineer code—needs thorough review.
 
 For straightforward stuff (CRUD, types, tests): 10 min review, usually good
 For database stuff: 20-30 min review, often needs significant changes
@@ -193,6 +193,7 @@ I feel less creative though? Like I'm leaning on AI for the "first draft" and th
 **3. After AI generates code:**
 
 I've developed a system:
+
 - Boilerplate/types: Accept 90%, quick scan
 - UI components: Accept 60%, check accessibility + design system compliance
 - State logic: Accept 20%, rewrite most of it
@@ -483,6 +484,7 @@ I'm more tired at the end of the day because I'm reviewing code all day instead 
 **3. After AI generates code:**
 
 I've gotten disciplined about this:
+
 - If it's <20 lines: Accept and quick review (2-3 min)
 - If it's >20 lines: Read every line carefully (10-20 min)
 - If it's distributed systems code: Don't use AI at all
