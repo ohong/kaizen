@@ -5,6 +5,8 @@ A hackathon-scoped tool that analyzes the [Supabase open source repository](http
 
 **Critical Constraint:** Designed for contribution analysis in open source contexts, not employee performance evaluation.
 
+**New Experience Insight:** Capture qualitative developer feedback via an AI-focused survey (see `emails/placeholder-survey.md`) to pair sentiment with quantitative metrics.
+
 ---
 
 ## The 9 Developer Dimensions
@@ -38,6 +40,11 @@ A hackathon-scoped tool that analyzes the [Supabase open source repository](http
 - Match: Owner email → GitHub username
 - Metric: Time from alert → fix commit
 
+### Resend API
+- Send transactional emails (daily report + developer experience survey) via App Router handlers
+- Manage 21-option recipient list and inject template content from Markdown
+- Receive inbound replies through webhook delivery for qualitative analysis
+
 ---
 
 ## Database Schema (Supabase Postgres)
@@ -69,6 +76,26 @@ CREATE TABLE daily_reports (
   top_contributors JSONB, -- array of top 5
   sent_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- survey_sends table
+CREATE TABLE survey_sends (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  sent_at TIMESTAMPTZ DEFAULT NOW(),
+  recipients TEXT[], -- emails included in the blast
+  resend_message_id TEXT,
+  triggered_by TEXT -- username/email of trigger
+);
+
+-- survey_responses table (Resend Inbound)
+CREATE TABLE survey_responses (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  survey_send_id UUID REFERENCES survey_sends(id),
+  sender_email TEXT NOT NULL,
+  received_at TIMESTAMPTZ DEFAULT NOW(),
+  subject TEXT,
+  body TEXT,
+  raw_payload JSONB -- store entire Resend inbound payload for context
 );
 ```
 
@@ -110,6 +137,24 @@ Generates and sends daily report via Resend
 - Sends email to configured recipient
 - Returns: `{ sent: true, recipients: [...] }`
 
+### `GET /api/surveys/recipients`
+Returns selectable survey recipient list
+- Generates 20 dummy engineers with `@supbase.com` emails + one real contact `markmorgan.dev@gmail.com`
+- Response ordered alphabetically for quick scanning in the UI
+
+### `POST /api/surveys/send`
+Sends the developer experience survey email via Resend App Router handler
+- Renders `emails/placeholder-survey.md` into transactional template
+- Uses [`resend` sendWithNext.js integration](https://resend.com/docs/send-with-nextjs)
+- Persists send attempt + recipient list for analytics
+- Returns: `{ sent: true, recipients: [...], message_id: "..." }`
+
+### `POST /api/surveys/inbound`
+Webhook handler for Resend Inbound replies
+- Validates Resend signature and stores inbound message payload
+- Links responses to the most recent survey send per recipient
+- Triggers notification or dashboard update when new qualitative feedback arrives
+
 ---
 
 ## Frontend Requirements
@@ -119,6 +164,7 @@ Generates and sends daily report via Resend
 - Columns: Avatar, Username, Top Dimension, Composite Score, Rank
 - Sortable by any dimension
 - Click row → navigate to detail page
+- Trigger buttons: "Send Daily Report" and "Send DevEx Survey" (opens modal)
 
 ### Contributor Detail View (`/contributor/:username`)
 - Radar chart (9 axes, one per dimension)
@@ -131,6 +177,7 @@ Generates and sends daily report via Resend
 - Use Tailwind CSS
 - Responsive (mobile-friendly table)
 - Dark mode optional (skip if time-constrained)
+- Survey modal matches dashboard styling; search/filter recipients list of 21 emails
 
 ---
 
@@ -155,6 +202,21 @@ View full dashboard: https://devradar.vercel.app
 ```
 
 **Send to:** Configured email (hardcode for hackathon)
+
+---
+
+### Developer Experience Survey Template
+**Purpose:** Gather qualitative insights on productivity and AI usage from engineers
+
+**Trigger:** Programmatic send from App Router action hitting `POST /api/surveys/send`
+
+**Recipient Picker:**
+- Surface 21 options: 20 dummy engineers (`dev01@supbase.com` … `dev20@supbase.com`) plus `markmorgan.dev@gmail.com`
+- Allow multi-select with hover help that reiterates survey goals and reply expectations
+
+**Template Source:** Render Markdown from `emails/placeholder-survey.md` into the Resend email body
+
+**Replies:** Configure Resend Inbound to call `/api/surveys/inbound` so recipients can reply directly; persist message body, attachments, and metadata for qualitative analysis
 
 ---
 
@@ -246,14 +308,17 @@ kiwicopple_percentile = (rank of 42 in sorted_values) / total * 100
 - Build `/api/reports/send` endpoint
 - Integrate Resend API
 - Create email template
+- Scaffold App Router action + handler for `/api/surveys/send` using Resend SDK
 
 **Person 2:**
 - Add "Send Report" button to dashboard
 - Polish table UI (add avatars, badges)
+- Build survey recipient picker UI (list dummy + real emails, multi-select, default instructions)
 
 **Person 3:**
 - Add loading states
 - Handle error cases (API failures)
+- Implement `/api/surveys/inbound` webhook handler + Supabase persistence for replies
 
 ### Hour 5: Polish & Demo Prep
 **All:**
@@ -308,6 +373,7 @@ kiwicopple_percentile = (rank of 42 in sorted_values) / total * 100
 ✅ Calculate 9 dimension scores  
 ✅ Display radar chart for any contributor  
 ✅ Send email via Resend with top 5 contributors  
+✅ Deliver developer experience survey + capture inbound replies  
 
 **Nice to Have:**
 - Rank badges ("Top 10%")
@@ -328,13 +394,18 @@ kiwicopple_percentile = (rank of 42 in sorted_values) / total * 100
 │   └── api/
 │       ├── sync/route.ts     # Data ingestion endpoint
 │       ├── contributors/route.ts
-│       └── reports/
-│           └── send/route.ts # Email sending
+│       ├── reports/
+│       │   └── send/route.ts       # Daily digest email sending
+│       └── surveys/
+│           ├── recipients/route.ts # Provides dummy + real email list
+│           ├── send/route.ts       # App Router handler using Resend SDK
+│           └── inbound/route.ts    # Resend Inbound webhook receiver
 ├── lib/
 │   ├── github.ts             # GitHub API client
 │   ├── linear.ts             # Linear API client  
 │   ├── datadog.ts            # Datadog API client
 │   ├── scoring.ts            # Percentile calculation logic
+│   ├── resend.ts             # Thin wrapper around Resend SDK
 │   └── supabase.ts           # DB client
 └── .env.local
     GITHUB_TOKEN=
