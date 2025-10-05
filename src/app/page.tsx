@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Image from "next/image";
+import { CopilotSidebar } from "@copilotkit/react-ui";
 
 import { supabase } from "@/lib/supabase";
 import {
@@ -30,6 +31,13 @@ import {
   RadarChartViz,
   ScatterChartViz,
 } from "@/components/charts";
+
+const COPILOT_INSTRUCTIONS = `You are Kaizen's delivery analytics copilot. Help engineering leaders understand repository health, pull requests, developers, and operational metrics. You can call GitHub MCP tools to inspect repositories and Supabase's SQL tool run_supabase_sql to query analytics tables. Prefer read-only queries; avoid destructive SQL. Always explain how you reached conclusions and surface specific metrics or PR examples when available.`;
+
+const COPILOT_LABELS = {
+  title: "Kaizen Copilot",
+  placeholder: "Ask about throughput, review times, or repo activity…",
+} as const;
 
 interface HealthSummary {
   healthScore: number | null;
@@ -295,57 +303,62 @@ export default function ManagerDashboard() {
   );
 
   return (
-    <div className="relative min-h-screen bg-[var(--hud-bg)] text-[var(--hud-text)]">
-      <div className="pointer-events-none fixed top-0 left-0 z-0 h-16 w-16 border-l-2 border-t-2 border-[var(--hud-accent)] opacity-30" />
-      <div className="pointer-events-none fixed top-0 right-0 z-0 h-16 w-16 border-r-2 border-t-2 border-[var(--hud-accent)] opacity-30" />
-      <div className="pointer-events-none fixed bottom-0 left-0 z-0 h-16 w-16 border-b-2 border-l-2 border-[var(--hud-accent)] opacity-30" />
-      <div className="pointer-events-none fixed bottom-0 right-0 z-0 h-16 w-16 border-b-2 border-r-2 border-[var(--hud-accent)] opacity-30" />
+    <CopilotSidebar
+      instructions={COPILOT_INSTRUCTIONS}
+      labels={COPILOT_LABELS}
+      defaultOpen={false}
+    >
+      <div className="relative min-h-screen bg-[var(--hud-bg)] text-[var(--hud-text)]">
+          <div className="pointer-events-none fixed top-0 left-0 z-0 h-16 w-16 border-l-2 border-t-2 border-[var(--hud-accent)] opacity-30" />
+          <div className="pointer-events-none fixed top-0 right-0 z-0 h-16 w-16 border-r-2 border-t-2 border-[var(--hud-accent)] opacity-30" />
+          <div className="pointer-events-none fixed bottom-0 left-0 z-0 h-16 w-16 border-b-2 border-l-2 border-[var(--hud-accent)] opacity-30" />
+          <div className="pointer-events-none fixed bottom-0 right-0 z-0 h-16 w-16 border-b-2 border-r-2 border-[var(--hud-accent)] opacity-30" />
 
-      <header className="sticky top-0 z-50 border-b border-[var(--hud-border)] bg-[var(--hud-bg)]/95 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-4 px-8 py-5">
-          <div className="flex flex-wrap items-center gap-4">
-            <Image
-              src="/logo.png"
-              alt="Kaizen"
-              width={140}
-              height={40}
-              className="h-10 w-auto opacity-90"
-            />
-            <div className="hidden h-8 w-px bg-[var(--hud-border)] md:block" />
-            <div className="font-mono text-xs uppercase tracking-[0.35em] text-[var(--hud-text-dim)]">
-              <span className="text-[var(--hud-accent)]">▸</span>{" "}
-              {`${selectedRepository.owner}/${selectedRepository.name}`.toUpperCase()}
+          <header className="sticky top-0 z-50 border-b border-[var(--hud-border)] bg-[var(--hud-bg)]/95 backdrop-blur-sm">
+            <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-4 px-8 py-5">
+              <div className="flex flex-wrap items-center gap-4">
+                <Image
+                  src="/logo.png"
+                  alt="Kaizen"
+                  width={140}
+                  height={40}
+                  className="h-10 w-auto opacity-90"
+                />
+                <div className="hidden h-8 w-px bg-[var(--hud-border)] md:block" />
+                <div className="font-mono text-xs uppercase tracking-[0.35em] text-[var(--hud-text-dim)]">
+                  <span className="text-[var(--hud-accent)]">▸</span>{" "}
+                  {`${selectedRepository.owner}/${selectedRepository.name}`.toUpperCase()}
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="font-mono text-xs text-[var(--hud-text-dim)] uppercase tracking-wider">
+                Last Sync:{" "}
+                {latestSync ? formatDateTime(latestSync).toUpperCase() : "—"}
+              </div>
+              <div className="hidden h-8 w-px bg-[var(--hud-border)] sm:block" />
+              <RepositorySelector
+                repositories={repositories}
+                selectedOwner={selectedRepository.owner}
+                selectedName={selectedRepository.name}
+                onChange={handleRepositoryChange}
+              />
+              <button
+                type="button"
+                onClick={loadData}
+                className="hud-glow border border-[var(--hud-accent)] bg-[var(--hud-bg-elevated)] px-4 py-2 font-mono text-xs uppercase tracking-wider text-[var(--hud-accent)] transition-all duration-200 hover:bg-[var(--hud-accent)] hover:text-[var(--hud-bg)] disabled:cursor-not-allowed disabled:opacity-40"
+                disabled={loading}
+              >
+                {loading ? "Syncing…" : "Sync Data"}
+              </button>
+              <button
+                type="button"
+                className="border border-[var(--hud-warning)] bg-[var(--hud-bg-elevated)] px-4 py-2 font-mono text-xs uppercase tracking-wider text-[var(--hud-warning)] transition-all duration-200 hover:bg-[var(--hud-warning)] hover:text-[var(--hud-bg)]"
+              >
+                Send Report
+              </button>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="font-mono text-xs text-[var(--hud-text-dim)] uppercase tracking-wider">
-              Last Sync:{" "}
-              {latestSync ? formatDateTime(latestSync).toUpperCase() : "—"}
-            </div>
-            <div className="hidden h-8 w-px bg-[var(--hud-border)] sm:block" />
-            <RepositorySelector
-              repositories={repositories}
-              selectedOwner={selectedRepository.owner}
-              selectedName={selectedRepository.name}
-              onChange={handleRepositoryChange}
-            />
-            <button
-              type="button"
-              onClick={loadData}
-              className="hud-glow border border-[var(--hud-accent)] bg-[var(--hud-bg-elevated)] px-4 py-2 font-mono text-xs uppercase tracking-wider text-[var(--hud-accent)] transition-all duration-200 hover:bg-[var(--hud-accent)] hover:text-[var(--hud-bg)] disabled:cursor-not-allowed disabled:opacity-40"
-              disabled={loading}
-            >
-              {loading ? "Syncing…" : "Sync Data"}
-            </button>
-            <button
-              type="button"
-              className="border border-[var(--hud-warning)] bg-[var(--hud-bg-elevated)] px-4 py-2 font-mono text-xs uppercase tracking-wider text-[var(--hud-warning)] transition-all duration-200 hover:bg-[var(--hud-warning)] hover:text-[var(--hud-bg)]"
-            >
-              Send Report
-            </button>
-          </div>
-        </div>
-      </header>
+        </header>
 
       <main className="mx-auto flex max-w-[1600px] flex-col gap-10 px-8 py-12">
         <section className="hud-panel hud-corner hud-scanline p-8">
@@ -659,7 +672,8 @@ export default function ManagerDashboard() {
           </>
         )}
       </main>
-    </div>
+      </div>
+    </CopilotSidebar>
   );
 }
 
