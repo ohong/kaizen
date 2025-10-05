@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type { DatadogError } from "@/lib/types/database";
 import { DistributionChart } from "@/components/charts";
+import { resolveServiceName } from "@/lib/errors";
 import {
   LineChart as ReLineChart,
   Line,
@@ -99,32 +100,6 @@ export function DatadogErrorsSection({ owner, name }: DatadogErrorsSectionProps)
     };
   }, [repoId, timeRange]);
 
-  // Transform service names for Next.js product
-  const transformService = (originalService: string | null, errorId: number): string => {
-    if (!originalService || originalService === "hosting") {
-      // Create realistic service distribution based on error ID for consistency
-      const services = [
-        "nextjs-frontend",
-        "api-gateway", 
-        "auth-service",
-        "database",
-        "cdn",
-        "monitoring",
-        "queue-worker",
-        "file-storage",
-        "search-service",
-        "notification-service",
-        "payment-processor",
-        "analytics-service",
-        "cache-redis",
-        "email-service",
-        "webhook-handler"
-      ];
-      return services[errorId % services.length];
-    }
-    return originalService;
-  };
-
   const summary = useMemo(() => {
     if (!errors.length) {
       return {
@@ -149,7 +124,7 @@ export function DatadogErrorsSection({ owner, name }: DatadogErrorsSectionProps)
     const normalizeMessage = (msg: string | null) => (msg ? msg.trim() : "<no message>");
 
     for (const e of errors) {
-      const service = transformService(e.service, e.id);
+      const service = resolveServiceName(e.service, e.id);
       const env = e.env || "unknown";
       const hour = normalizeHour(e.occurred_at);
       const message = normalizeMessage(e.message);
@@ -275,7 +250,7 @@ export function DatadogErrorsSection({ owner, name }: DatadogErrorsSectionProps)
                       </p>
                       <div className="mt-1 flex items-center gap-2">
                         <Badge tone="danger">{e.status || "error"}</Badge>
-                        <Badge tone="info">{transformService(e.service, e.id)}</Badge>
+                        <Badge tone="info">{resolveServiceName(e.service, e.id)}</Badge>
                         {e.env && <Badge tone="neutral">{e.env}</Badge>}
                       </div>
                     </div>
@@ -361,5 +336,3 @@ function EmptyState({ label }: { label: string }) {
 }
 
 export default DatadogErrorsSection;
-
-
