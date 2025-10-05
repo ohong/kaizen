@@ -344,6 +344,13 @@ export default function ManagerDashboard() {
             >
               Send Report
             </button>
+            <button
+              type="button"
+              onClick={() => router.push("/feedback")}
+              className="border border-[var(--hud-accent)] bg-[var(--hud-bg-elevated)] px-4 py-2 font-mono text-xs uppercase tracking-wider text-[var(--hud-accent)] transition-all duration-200 hover:bg-[var(--hud-accent)] hover:text-[var(--hud-bg)]"
+            >
+              Feedback
+            </button>
           </div>
         </div>
       </header>
