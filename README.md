@@ -72,7 +72,7 @@ Kaizen integrates with:
 npm install
 cp .env.example .env.local
 # Add API keys for GitHub, Linear, Datadog, Resend, Supabase
-# Optional: set AGENT_MODEL_PROVIDER=nvidia if you want the agent to run on NVIDIA endpoints
+# Optional: set AGENT_MODEL_NAME to override the default NVIDIA model (meta/llama-3.1-70b-instruct)
 npm run dev
 ```
 

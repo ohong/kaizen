@@ -13,7 +13,6 @@ from langgraph.types import Command
 from langgraph.graph import MessagesState
 from langgraph.prebuilt import ToolNode
 import os
-from langchain_openai import ChatOpenAI
 
 # Load system prompt from file
 SYSTEM_PROMPT_PATH = os.path.join(os.path.dirname(__file__), "..", "prompts", "sys-prompt.md")
@@ -49,40 +48,25 @@ backend_tools = [
 # Extract tool names from backend_tools for comparison
 backend_tool_names = [tool.name for tool in backend_tools]
 
-DEFAULT_MODEL_PROVIDER = os.getenv("AGENT_MODEL_PROVIDER", "nvidia").lower()
 DEFAULT_MODEL_NAME = os.getenv("AGENT_MODEL_NAME")
 DEFAULT_MODEL_TEMPERATURE = float(os.getenv("AGENT_MODEL_TEMPERATURE", "0.2"))
 
 
 def create_chat_model() -> Any:
-    """Create the chat model based on environment configuration."""
-    provider = DEFAULT_MODEL_PROVIDER
-    model_name = DEFAULT_MODEL_NAME
+    """Create the NVIDIA chat model used by the agent."""
+    try:
+        from langchain_nvidia_ai_endpoints import ChatNVIDIA
+    except ImportError as exc:
+        raise ImportError("Install langchain-nvidia-ai-endpoints to use NVIDIA models") from exc
 
-    if provider == "nvidia":
-        try:
-            from langchain_nvidia_ai_endpoints import ChatNVIDIA
-        except ImportError as exc:
-            raise ImportError("Install langchain-nvidia-ai-endpoints to use NVIDIA models") from exc
+    api_key = os.getenv("NVIDIA_API_KEY")
+    if not api_key:
+        raise ValueError("NVIDIA_API_KEY is required to run the agent.")
 
-        api_key = os.getenv("NVIDIA_API_KEY")
-        if not api_key:
-            raise ValueError("NVIDIA_API_KEY is required when AGENT_MODEL_PROVIDER is set to 'nvidia'.")
-
-        return ChatNVIDIA(
-            model=model_name or "meta/llama-3.1-70b-instruct",
-            temperature=DEFAULT_MODEL_TEMPERATURE,
-            api_key=api_key,
-        )
-
-    if provider == "openai":
-        return ChatOpenAI(
-            model=model_name or "gpt-4o-mini",
-            temperature=DEFAULT_MODEL_TEMPERATURE,
-        )
-
-    raise ValueError(
-        "Unsupported AGENT_MODEL_PROVIDER. Set to 'nvidia' or 'openai'."
+    return ChatNVIDIA(
+        model=DEFAULT_MODEL_NAME or "meta/llama-3.1-70b-instruct",
+        temperature=DEFAULT_MODEL_TEMPERATURE,
+        api_key=api_key,
     )
 
 
