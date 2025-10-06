@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import { supabase } from "@/lib/supabase";
 import type { DatadogError } from "@/lib/types/database";
 import { DistributionChart } from "@/components/charts";
@@ -188,8 +189,13 @@ export function DatadogErrorsSection({ owner, name }: DatadogErrorsSectionProps)
 
   return (
     <section>
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-[var(--hud-text-bright)]">Operational errors</h2>
+      <div className="mb-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <h2 className="text-xl font-semibold text-[var(--hud-text-bright)]">Operational errors</h2>
+          <p className="text-sm text-[var(--hud-text-dim)]">
+            Scan recent incidents and dig deeper only where you need to intervene.
+          </p>
+        </div>
         <div className="flex items-center gap-2">
           <TimeRangeToggle value={timeRange} onChange={setTimeRange} />
         </div>
@@ -201,45 +207,65 @@ export function DatadogErrorsSection({ owner, name }: DatadogErrorsSectionProps)
         </div>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
-        <div className="h-[360px] hud-panel hud-corner p-4 xl:col-span-2">
-          <h3 className="mb-4 text-sm font-medium text-white">Errors over time</h3>
-          {loading ? (
-            <EmptyState label="Loading..." />
-          ) : summary.timeline.length === 0 ? (
-            <EmptyState label="No errors in selected period" />
-          ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <ReLineChart data={summary.timeline} margin={{ top: 15, right: 20, bottom: 10, left: 10 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                <XAxis dataKey="date" stroke="#94a3b8" tick={{ fill: "#94a3b8", fontSize: 12 }} />
-                <YAxis stroke="#94a3b8" tick={{ fill: "#94a3b8", fontSize: 12 }} />
-                <Tooltip
-                  contentStyle={{ background: "#0f172a", border: "1px solid #334155" }}
-                  labelStyle={{ color: "#cbd5e1" }}
-                  itemStyle={{ color: "#cbd5e1" }}
-                  formatter={(value: number | string) => [value, "Errors"]}
-                />
-                <Line type="monotone" dataKey="count" stroke="#ef4444" strokeWidth={2} dot={false} />
-              </ReLineChart>
-            </ResponsiveContainer>
-          )}
-        </div>
+      <div className="mb-6 grid gap-3 sm:grid-cols-3">
+        <SummaryTile label="Total errors" value={summary.total} loading={loading} />
+        <SummaryTile label="Services impacted" value={summary.byService.length} loading={loading} />
+        <SummaryTile label="Distinct messages" value={summary.topMessages.length} loading={loading} />
+      </div>
 
-        <div className="h-[360px] hud-panel hud-corner p-4">
-          <DistributionChart data={summary.byService} title="By service" yLabel="Errors" />
-        </div>
-        <div className="h-[360px] hud-panel hud-corner p-4">
-          <DistributionChart data={summary.byEnv} title="By environment" yLabel="Errors" />
-        </div>
+      <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
+        <CollapsiblePanel
+          title="Errors over time"
+          description="Trend of error events in the selected window."
+        >
+          <div className="h-[320px]">
+            {loading ? (
+              <EmptyState label="Loading..." />
+            ) : summary.timeline.length === 0 ? (
+              <EmptyState label="No errors in selected period" />
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <ReLineChart data={summary.timeline} margin={{ top: 15, right: 20, bottom: 10, left: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                  <XAxis dataKey="date" stroke="#94a3b8" tick={{ fill: "#94a3b8", fontSize: 12 }} />
+                  <YAxis stroke="#94a3b8" tick={{ fill: "#94a3b8", fontSize: 12 }} />
+                  <Tooltip
+                    contentStyle={{ background: "#0f172a", border: "1px solid #334155" }}
+                    labelStyle={{ color: "#cbd5e1" }}
+                    itemStyle={{ color: "#cbd5e1" }}
+                    formatter={(value: number | string) => [value, "Errors"]}
+                  />
+                  <Line type="monotone" dataKey="count" stroke="#ef4444" strokeWidth={2} dot={false} />
+                </ReLineChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </CollapsiblePanel>
+
+        <CollapsiblePanel
+          title="Services impacted"
+          description="Service-level distribution of incidents."
+        >
+          <div className="h-[320px]">
+            <DistributionChart data={summary.byService} title="By service" yLabel="Errors" />
+          </div>
+        </CollapsiblePanel>
+
+        <CollapsiblePanel
+          title="Environment spread"
+          description="See which environment is generating noise."
+        >
+          <div className="h-[320px]">
+            <DistributionChart data={summary.byEnv} title="By environment" yLabel="Errors" />
+          </div>
+        </CollapsiblePanel>
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <div className="hud-panel hud-corner p-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium text-white">Recent errors</h3>
-            <p className="text-xs text-[var(--hud-text-dim)]">{summary.total} total</p>
-          </div>
+        <CollapsiblePanel
+          title="Recent errors"
+          description="The latest events in this window. Expand for message and metadata."
+        >
           {loading ? (
             <div className="flex h-32 items-center justify-center text-[var(--hud-text-dim)]">Loading...</div>
           ) : summary.recent.length === 0 ? (
@@ -267,10 +293,12 @@ export function DatadogErrorsSection({ owner, name }: DatadogErrorsSectionProps)
               ))}
             </ul>
           )}
-        </div>
+        </CollapsiblePanel>
 
-        <div className="hud-panel hud-corner p-4">
-          <h3 className="text-sm font-medium text-white">Top error messages</h3>
+        <CollapsiblePanel
+          title="Top error messages"
+          description="Most-frequent signatures for the selected range."
+        >
           {loading ? (
             <div className="flex h-32 items-center justify-center text-[var(--hud-text-dim)]">Loading...</div>
           ) : summary.topMessages.length === 0 ? (
@@ -288,9 +316,58 @@ export function DatadogErrorsSection({ owner, name }: DatadogErrorsSectionProps)
               ))}
             </ol>
           )}
-        </div>
+        </CollapsiblePanel>
       </div>
     </section>
+  );
+}
+
+function SummaryTile({
+  label,
+  value,
+  loading,
+}: {
+  label: string;
+  value: number;
+  loading: boolean;
+}) {
+  return (
+    <div className="hud-panel hud-corner p-4">
+      <p className="font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">{label}</p>
+      <p className="mt-2 text-2xl font-semibold text-[var(--hud-text-bright)]">
+        {loading ? "…" : value}
+      </p>
+    </div>
+  );
+}
+
+function CollapsiblePanel({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="hud-panel hud-corner p-3">
+      <details className="group">
+        <summary className="flex cursor-pointer items-center justify-between gap-3 rounded-lg px-2 py-2 text-sm text-[var(--hud-text)] transition-colors group-open:bg-[var(--hud-bg-elevated)]">
+          <div className="flex flex-col gap-1">
+            <span className="font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">{title}</span>
+            <span className="text-sm text-[var(--hud-text)]">{description}</span>
+          </div>
+          <span
+            className="flex h-6 w-6 items-center justify-center rounded-full border border-[var(--hud-border)] text-[var(--hud-text-dim)] transition-transform duration-150 group-open:rotate-90"
+            aria-hidden
+          >
+            ▸
+          </span>
+        </summary>
+        <div className="mt-4">{children}</div>
+      </details>
+    </div>
   );
 }
 

@@ -25,24 +25,40 @@ export function ActionQueueSection({ actionGroups }: ActionQueueSectionProps) {
 }
 
 function ActionGroupCard({ group }: { group: ActionGroup }) {
+  const oldestUpdate = group.prs.reduce<string | null>((oldest, pr) => {
+    if (!pr.updated_at) return oldest;
+    if (!oldest) return pr.updated_at;
+    return new Date(pr.updated_at) < new Date(oldest) ? pr.updated_at : oldest;
+  }, null);
+
   return (
-    <div className="flex flex-col gap-3 hud-panel hud-corner p-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
-            {group.title}
-          </p>
-          <p className="mt-1 text-sm text-[var(--hud-text)]">{group.description}</p>
+    <div className="hud-panel hud-corner p-3">
+      <details className="group">
+        <summary className="flex cursor-pointer items-center justify-between gap-3 rounded-lg px-2 py-2 text-sm text-[var(--hud-text)] transition-colors group-open:bg-[var(--hud-bg-elevated)]">
+          <div className="flex flex-col gap-1">
+            <p className="font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
+              {group.title}
+            </p>
+            <p className="text-sm text-[var(--hud-text)]">
+              {group.description}
+            </p>
+            <p className="font-mono text-[10px] uppercase tracking-wider text-[var(--hud-text-dim)]">
+              {group.prs.length} PR{group.prs.length === 1 ? "" : "s"} • oldest update {oldestUpdate ? formatRelativeDate(oldestUpdate) : "n/a"}
+            </p>
+          </div>
+          <span
+            className="flex h-6 w-6 items-center justify-center rounded-full border border-[var(--hud-border)] text-[var(--hud-text-dim)] transition-transform duration-150 group-open:rotate-90"
+            aria-hidden
+          >
+            ▸
+          </span>
+        </summary>
+        <div className="mt-4 space-y-3">
+          {group.prs.map((pr) => (
+            <PRListItem key={pr.id ?? pr.pr_number} pr={pr} />
+          ))}
         </div>
-        <span className="rounded-full border border-[var(--hud-accent)]/40 bg-[var(--hud-accent)]/10 px-3 py-1 font-mono text-xs uppercase tracking-wide text-[var(--hud-accent)]">
-          {group.prs.length}
-        </span>
-      </div>
-      <div className="space-y-3">
-        {group.prs.map((pr) => (
-          <PRListItem key={pr.id ?? pr.pr_number} pr={pr} />
-        ))}
-      </div>
+      </details>
     </div>
   );
 }

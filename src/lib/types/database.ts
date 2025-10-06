@@ -318,6 +318,7 @@ export interface Database {
           first_pr_date: string | null;
           last_pr_date: string | null;
           data_span_days: number | null;
+          health_percentile: number | null;
         };
       };
     };

@@ -11,8 +11,10 @@ import {
   ControlTowerHero,
   DashboardHeader,
   DeveloperInsightsSection,
+  TeamScoreGrid,
   GuidedActionsPanel,
   HealthOverviewSection,
+  OverviewSection,
   ReportModal,
   WorkflowSignalsSection,
 } from "@/components/dashboard";
@@ -20,11 +22,13 @@ import DatadogErrorsSection from "@/components/DatadogErrorsSection";
 import { useRepositoryDashboard } from "@/hooks/useRepositoryDashboard";
 import {
   calculateDeveloperEfficiency,
+  computeTeamEfficiencySummary,
   generateComparisonInsights,
   generateReviewTimeVsMergeTimeScatter,
   generateSizeVsTimeScatter,
   type ComparisonInsight,
   type DeveloperEfficiency,
+  type TeamEfficiencySummary,
 } from "@/lib/metrics";
 import {
   buildActionGroups,
@@ -141,6 +145,11 @@ export default function ManagerDashboard() {
     return [...developerEfficiencies].sort((a, b) => b.overallScore - a.overallScore);
   }, [developerEfficiencies]);
 
+  const teamEfficiency = useMemo<TeamEfficiencySummary | null>(
+    () => computeTeamEfficiencySummary(developerEfficiencies),
+    [developerEfficiencies]
+  );
+
   useEffect(() => {
     if (!sortedDevelopers.length) {
       setSelectedDeveloper(null);
@@ -150,6 +159,7 @@ export default function ManagerDashboard() {
       setSelectedDeveloper(sortedDevelopers[0].author);
     }
   }, [sortedDevelopers, selectedDeveloper]);
+
 
   const healthSummary = useMemo<HealthSummary>(() => {
     return computeTeamHealth(repoMetrics, prs);
@@ -446,6 +456,13 @@ export default function ManagerDashboard() {
         <main className="mx-auto flex max-w-[1600px] flex-col gap-10 px-8 py-12">
           <ControlTowerHero owner={selectedRepository.owner} name={selectedRepository.name} />
 
+          <OverviewSection
+            repository={selectedRepository}
+            wins={healthSummary.wins}
+            focusAreas={healthSummary.focusAreas}
+            actionGroups={actionGroups}
+          />
+
           {error && (
             <div className="hud-panel hud-corner border border-[var(--hud-danger)]/40 bg-[var(--hud-danger)]/15 px-4 py-3 text-sm text-[var(--hud-text-bright)]">
               {error}
@@ -464,32 +481,62 @@ export default function ManagerDashboard() {
             </div>
           ) : (
             <>
-              <HealthOverviewSection summary={healthSummary} />
+              <section className="flex flex-col gap-6">
+                <header className="space-y-2">
+                  <h2 className="text-xl font-semibold text-[var(--hud-text-bright)]">Metrics</h2>
+                  <p className="max-w-3xl text-sm text-[var(--hud-text-dim)]">
+                    Track delivery health, flow efficiency, and how you compare to benchmarks.
+                  </p>
+                </header>
+                <div className="flex flex-col gap-6 lg:flex-row lg:items-stretch">
+                  <div className="lg:w-[70%]">
+                    <HealthOverviewSection summary={healthSummary} className="h-full" />
+                  </div>
+                  <div className="lg:w-[30%]">
+                    <TeamScoreGrid summary={teamEfficiency} className="h-full" />
+                  </div>
+                </div>
+                <div className="flex flex-col gap-8">
+                  <WorkflowSignalsSection
+                    sizeVsTimeData={sizeVsTimeData}
+                    reviewVsMergeData={reviewVsMergeData}
+                    prSizeDistribution={prSizeDistribution}
+                  />
+                  <BenchmarkInsightsSection
+                    speedData={comparisonSpeedData}
+                    qualityData={comparisonQualityData}
+                    insights={comparisonInsights}
+                  />
+                </div>
+              </section>
 
-              <ActionQueueSection actionGroups={actionGroups} />
+              <section className="flex flex-col gap-6">
+                <header className="space-y-2">
+                  <h2 className="text-xl font-semibold text-[var(--hud-text-bright)]">Blockers</h2>
+                  <p className="max-w-3xl text-sm text-[var(--hud-text-dim)]">
+                    Unblock the work and services putting delivery at risk right now.
+                  </p>
+                </header>
+                <div className="flex flex-col gap-8">
+                  <ActionQueueSection actionGroups={actionGroups} />
+                  <DatadogErrorsSection
+                    owner={selectedRepository.owner}
+                    name={selectedRepository.name}
+                  />
+                </div>
+              </section>
 
-              <DeveloperInsightsSection
-                developers={sortedDevelopers}
-                selectedDeveloper={selectedDeveloper}
-                onSelectDeveloper={setSelectedDeveloper}
-              />
-
-              <WorkflowSignalsSection
-                sizeVsTimeData={sizeVsTimeData}
-                reviewVsMergeData={reviewVsMergeData}
-                prSizeDistribution={prSizeDistribution}
-              />
-
-              <BenchmarkInsightsSection
-                speedData={comparisonSpeedData}
-                qualityData={comparisonQualityData}
-                insights={comparisonInsights}
-              />
-
-              <section>
-                <DatadogErrorsSection
-                  owner={selectedRepository.owner}
-                  name={selectedRepository.name}
+              <section className="flex flex-col gap-6">
+                <header className="space-y-2">
+                  <h2 className="text-xl font-semibold text-[var(--hud-text-bright)]">Recommendations</h2>
+                  <p className="max-w-3xl text-sm text-[var(--hud-text-dim)]">
+                    Coaching cues and focus areas for your engineers based on recent activity.
+                  </p>
+                </header>
+                <DeveloperInsightsSection
+                  developers={sortedDevelopers}
+                  selectedDeveloper={selectedDeveloper}
+                  onSelectDeveloper={setSelectedDeveloper}
                 />
               </section>
             </>

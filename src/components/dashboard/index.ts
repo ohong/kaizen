@@ -1,8 +1,10 @@
 export { DashboardHeader } from "./DashboardHeader";
 export { ControlTowerHero } from "./ControlTowerHero";
+export { OverviewSection } from "./OverviewSection";
 export { HealthOverviewSection } from "./HealthOverviewSection";
 export { ActionQueueSection } from "./ActionQueueSection";
 export { DeveloperInsightsSection } from "./DeveloperInsightsSection";
+export { TeamScoreGrid } from "./TeamScoreGrid";
 export { WorkflowSignalsSection } from "./WorkflowSignalsSection";
 export { BenchmarkInsightsSection } from "./BenchmarkInsightsSection";
 export { ReportModal } from "./ReportModal";

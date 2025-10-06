@@ -2,6 +2,7 @@ import type { PullRequest, RepositoryMetrics } from "@/lib/types/database";
 
 export interface HealthSummary {
   healthScore: number | null;
+  healthPercentile: number | null;
   summary: string;
   throughputPerWeek: number | null;
   mergeRate: number | null;
@@ -35,6 +36,7 @@ export function computeTeamHealth(
   if (!repoMetrics) {
     return {
       healthScore: null,
+      healthPercentile: null,
       summary: "Waiting for metrics — trigger a sync",
       throughputPerWeek: null,
       mergeRate: null,
@@ -78,6 +80,7 @@ export function computeTeamHealth(
   const healthScore = Math.round(
     mergeRateScore * 0.3 + mergeTimeScore * 0.3 + reviewTimeScore * 0.2 + throughputScore * 0.2
   );
+  const healthPercentile = repoMetrics.health_percentile ?? null;
 
   let summary = "";
   if (healthScore >= 80) {
@@ -120,6 +123,7 @@ export function computeTeamHealth(
 
   return {
     healthScore,
+    healthPercentile,
     summary,
     throughputPerWeek,
     mergeRate,
