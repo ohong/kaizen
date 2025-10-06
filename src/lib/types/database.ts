@@ -167,6 +167,44 @@ export interface Database {
           repository_id?: string;
         };
       };
+      integrations: {
+        Row: {
+          id: string; // uuid
+          repository_id: string; // uuid, references repositories.id
+          type: 'github' | 'datadog' | 'linear' | 'sentry' | 'slack';
+          name: string | null;
+          status: 'active' | 'inactive' | 'error';
+          config: any; // jsonb
+          datadog_api_key: string | null;
+          datadog_app_key: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          repository_id: string;
+          type: 'github' | 'datadog' | 'linear' | 'sentry' | 'slack';
+          name?: string | null;
+          status?: 'active' | 'inactive' | 'error';
+          config?: any;
+          datadog_api_key?: string | null;
+          datadog_app_key?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          repository_id?: string;
+          type?: 'github' | 'datadog' | 'linear' | 'sentry' | 'slack';
+          name?: string | null;
+          status?: 'active' | 'inactive' | 'error';
+          config?: any;
+          datadog_api_key?: string | null;
+          datadog_app_key?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
       repositories: {
         Row: {
           id: string;
@@ -204,6 +242,32 @@ export interface Database {
           company_size?: string | null;
           industry?: string | null;
           is_benchmark?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      users: {
+        Row: {
+          id: string; // uuid, references auth.users
+          email: string;
+          full_name: string | null;
+          avatar_url: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id: string;
+          email: string;
+          full_name?: string | null;
+          avatar_url?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          email?: string;
+          full_name?: string | null;
+          avatar_url?: string | null;
           created_at?: string;
           updated_at?: string;
         };

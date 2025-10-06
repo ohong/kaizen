@@ -380,6 +380,7 @@ export default function ManagerDashboard() {
           }}
           onOpenReport={handleOpenReportModal}
           onNavigateToFeedback={() => router.push("/feedback")}
+          onNavigateToIntegrations={() => router.push("/integrations")}
           onRepositoryChange={handleRepositoryChange}
         />
 

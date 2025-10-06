@@ -1,0 +1,120 @@
+"use client";
+
+import Image from "next/image";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
+
+interface SessionUser {
+  email: string | null;
+  userId: string | null;
+  fullName: string | null;
+  avatarUrl: string | null;
+}
+
+export function UserMenu() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [user, setUser] = useState<SessionUser | null>(null);
+
+  const loadSession = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const { data } = await supabase.auth.getSession();
+    const session = data.session;
+    if (!session) {
+      setUser(null);
+      setLoading(false);
+      return;
+    }
+    const sessionUser = session.user;
+    const email = sessionUser.email ?? null;
+    const userId = sessionUser.id ?? null;
+    const fullName = (sessionUser.user_metadata?.full_name || sessionUser.user_metadata?.name || null) as string | null;
+    const avatarUrl = (sessionUser.user_metadata?.avatar_url || sessionUser.user_metadata?.picture || null) as string | null;
+    setUser({ email, userId, fullName, avatarUrl });
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    setMounted(true);
+    void loadSession();
+    const { data: sub } = supabase.auth.onAuthStateChange(() => {
+      void loadSession();
+    });
+    return () => {
+      sub.subscription.unsubscribe();
+    };
+  }, [loadSession]);
+
+  const handleSignin = useCallback(async () => {
+    const redirectTo = `${window.location.origin}/auth/callback`;
+    await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo } });
+  }, []);
+
+  const handleSignout = useCallback(async () => {
+    setError(null);
+    await supabase.auth.signOut();
+    await loadSession();
+  }, [loadSession]);
+
+  const initials = useMemo(() => {
+    if (!user?.fullName && !user?.email) return "";
+    const source = user.fullName ?? user.email ?? "";
+    const parts = source.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0].slice(0, 1).toUpperCase();
+    return (parts[0].slice(0, 1) + parts[1].slice(0, 1)).toUpperCase();
+  }, [user]);
+
+  if (!mounted || loading) {
+    return (
+      <div className="min-w-[120px] text-right font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
+        Loading…
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <button
+        type="button"
+        onClick={handleSignin}
+        className="hud-glow border border-[var(--hud-accent)] bg-[var(--hud-accent)] px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-[var(--hud-bg)] transition-all duration-200 hover:bg-[var(--hud-accent-dim)]"
+      >
+        Sign in
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-3">
+      {user.avatarUrl ? (
+        <Image
+          src={user.avatarUrl}
+          alt={user.fullName || user.email || "User"}
+          width={28}
+          height={28}
+          className="h-7 w-7 rounded-full border border-[var(--hud-border)] object-cover"
+        />
+      ) : (
+        <div className="flex h-7 w-7 items-center justify-center rounded-full border border-[var(--hud-border)] bg-[var(--hud-bg-elevated)] text-[10px] text-[var(--hud-text-dim)]">
+          {initials}
+        </div>
+      )}
+      <div className="hidden flex-col leading-tight sm:flex">
+        <span className="text-xs text-[var(--hud-text)] max-w-[220px] truncate">{user.fullName || user.email}</span>
+        <button
+          type="button"
+          onClick={handleSignout}
+          className="self-start text-[10px] uppercase tracking-wider text-[var(--hud-danger)] hover:underline"
+        >
+          Sign out
+        </button>
+      </div>
+    </div>
+  );
+}
+
+
