@@ -26,6 +26,23 @@ export function DeveloperInsightsSection({
   const radarData = useMemo(() => {
     if (!selectedDeveloperData) return [];
     return [
+      { dimension: "Throughput", value: selectedDeveloperData.throughputScore.score, fullMark: 100 },
+      { dimension: "Merge speed", value: selectedDeveloperData.mergeSpeedScore.score, fullMark: 100 },
+      {
+        dimension: "Review responsiveness",
+        value: selectedDeveloperData.reviewResponsivenessScore.score,
+        fullMark: 100,
+      },
+      {
+        dimension: "Merge success",
+        value: selectedDeveloperData.mergeSuccessScore.score,
+        fullMark: 100,
+      },
+      {
+        dimension: "PR size discipline",
+        value: selectedDeveloperData.prSizeDisciplineScore.score,
+        fullMark: 100,
+      },
       { dimension: "Velocity", value: selectedDeveloperData.velocityScore.score, fullMark: 100 },
       { dimension: "Quality", value: selectedDeveloperData.qualityScore.score, fullMark: 100 },
       {
