@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { UserMenu } from "@/components/UserMenu";
 
 import type { RepositoryOption } from "@/lib/repository-utils";
 
@@ -14,6 +15,7 @@ interface DashboardHeaderProps {
   onSync: () => void;
   onOpenReport: () => void;
   onNavigateToFeedback: () => void;
+  onNavigateToIntegrations: () => void;
   onRepositoryChange: (owner: string, name: string) => void;
 }
 
@@ -25,6 +27,7 @@ export function DashboardHeader({
   onSync,
   onOpenReport,
   onNavigateToFeedback,
+  onNavigateToIntegrations,
   onRepositoryChange,
 }: DashboardHeaderProps) {
   return (
@@ -74,6 +77,15 @@ export function DashboardHeader({
           >
             Feedback
           </button>
+          <button
+            type="button"
+            onClick={onNavigateToIntegrations}
+            className="border border-[var(--hud-accent)] bg-[var(--hud-bg-elevated)] px-4 py-2 font-mono text-xs uppercase tracking-wider text-[var(--hud-accent)] transition-all duration-200 hover:bg-[var(--hud-accent)] hover:text-[var(--hud-bg)]"
+          >
+            Integrations
+          </button>
+          <div className="hidden h-8 w-px bg-[var(--hud-border)] sm:block" />
+          <UserMenu />
         </div>
       </div>
     </header>

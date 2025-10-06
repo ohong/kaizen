@@ -80,3 +80,20 @@ Visit `http://localhost:3000` and trigger your first sync.
 ---
 
 **Note:** This tool is designed for team improvement, not individual performance evaluation. Use responsibly.
+
+## Supabase Auth (Google)
+
+1. Add to `.env.local`:
+
+```
+NEXT_PUBLIC_SUPABASE_URL=your_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+```
+
+2. In Supabase Dashboard → Authentication → Providers, enable Google and paste your Google OAuth Client ID/Secret.
+
+3. In Google Cloud Console, add an authorized redirect URI: `https://<your-project-ref>.supabase.co/auth/v1/callback`.
+
+4. In the app, sign in at `/auth/login`. The OAuth callback is handled at `/auth/callback`.
+
+5. A `public.users` table is created and auto-populated when a new `auth.users` row is created.

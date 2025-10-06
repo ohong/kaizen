@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
 type ImportRequest = {
+  integrationId: string; // required: use integration credentials stored in DB
   days: number;
   service?: string;
   env?: string;
@@ -39,7 +40,13 @@ function optionalEnv(name: string, fallback?: string): string | undefined {
   return process.env[name] ?? fallback;
 }
 
-function buildDatadogQuery(params: ImportRequest): string {
+function buildDatadogQuery(params: {
+  service?: string;
+  env?: string;
+  status?: string;
+  query?: string;
+  tags?: string[];
+}): string {
   const filters: string[] = [];
   // default to errors if status not explicitly provided
   filters.push(params.status ? `status:${params.status}` : 'status:error');
@@ -133,6 +140,9 @@ export async function POST(req: Request) {
     if (typeof body.days !== 'number' || !isFinite(body.days) || body.days <= 0) {
       return NextResponse.json({ error: 'Invalid or missing "days" (positive number required)' }, { status: 400 });
     }
+    if (typeof body.integrationId !== 'string' || body.integrationId.trim().length === 0) {
+      return NextResponse.json({ error: 'Missing required "integrationId"' }, { status: 400 });
+    }
 
     const days = Math.floor(body.days);
     const limitPerPage = Math.min(Math.max((body.limitPerPage ?? 100), 1), 1000);
@@ -144,17 +154,12 @@ export async function POST(req: Request) {
     const toISO = to.toISOString();
 
     const query = buildDatadogQuery({
-      days,
       service: body.service,
       env: body.env,
       status: body.status,
       query: body.query,
       tags: body.tags,
-    } as ImportRequest);
-
-    const DATADOG_API_KEY = requireEnv('DATADOG_API_KEY');
-    const DATADOG_APP_KEY = requireEnv('DATADOG_APP_KEY');
-    const DATADOG_SITE = optionalEnv('DATADOG_SITE', 'datadoghq.com')!;
+    });
 
     const SUPABASE_URL = optionalEnv('SUPABASE_URL') || optionalEnv('NEXT_PUBLIC_SUPABASE_URL');
     const SUPABASE_SERVICE_ROLE_KEY = optionalEnv('SUPABASE_SERVICE_ROLE_KEY');
@@ -166,6 +171,27 @@ export async function POST(req: Request) {
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    // Load integration to get Datadog credentials and repository scope
+    const { data: integration, error: integrationError } = await supabase
+      .from('integrations')
+      .select('id, repository_id, type, status, datadog_api_key, datadog_app_key, config')
+      .eq('id', body.integrationId)
+      .single();
+
+    if (integrationError || !integration) {
+      return NextResponse.json({ error: 'Integration not found' }, { status: 404 });
+    }
+    if (integration.type !== 'datadog') {
+      return NextResponse.json({ error: 'Integration is not a Datadog integration' }, { status: 400 });
+    }
+    if (!integration.datadog_api_key || !integration.datadog_app_key) {
+      return NextResponse.json({ error: 'Integration missing Datadog API or APP key' }, { status: 400 });
+    }
+
+    const DATADOG_API_KEY = integration.datadog_api_key;
+    const DATADOG_APP_KEY = integration.datadog_app_key;
+    const DATADOG_SITE = (integration.config?.site as string | undefined) ?? 'datadoghq.com';
 
     let cursor: string | undefined;
     let totalProcessed = 0;
@@ -193,20 +219,26 @@ export async function POST(req: Request) {
       }
 
       // Map Datadog events to table rows
-      const rows = data.map((e) => {
+      const rows = data.flatMap((e) => {
         const attrs = (e?.attributes ?? {}) as DatadogLogEvent['attributes'];
         const tags = (attrs?.tags ?? []) as string[];
         const env = attrs?.env ?? parseEnvFromTags(tags);
-        return {
+        const occurredAt = attrs?.timestamp;
+        if (!occurredAt) {
+          // Skip records without timestamps to satisfy NOT NULL constraints
+          return [] as Record<string, unknown>[];
+        }
+        return [{
           datadog_event_id: e.id,
-          occurred_at: attrs?.timestamp ?? null,
+          occurred_at: occurredAt,
           status: attrs?.status ?? null,
           service: attrs?.service ?? null,
           env: env ?? null,
           message: attrs?.message ?? null,
           tags: Array.isArray(tags) ? tags : null,
           attributes: attrs ?? {},
-        } as Record<string, unknown>;
+          repository_id: integration.repository_id,
+        } as Record<string, unknown>];
       });
 
       // Upsert page rows into Supabase
