@@ -11,11 +11,6 @@ interface SurveyData {
   ctaLabel?: string;
 }
 
-interface SurveySendResult {
-  email: string;
-  messageId?: string;
-}
-
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -56,14 +51,15 @@ export async function POST(request: NextRequest) {
 
     // Separate successful and failed sends
     const successful = results
-      .filter((result): result is PromiseFulfilledResult<SurveySendResult> => result.status === "fulfilled")
-      .map((result) => result.value);
+      .filter((result) => result.status === "fulfilled")
+      .map((result) => result.status === "fulfilled" ? result.value : null)
+      .filter((v) => v !== null);
 
     const failed = results
-      .filter((result): result is PromiseRejectedResult => result.status === "rejected")
+      .filter((result) => result.status === "rejected")
       .map((result, index) => ({
         email: recipients[index],
-        error: result.reason,
+        error: result.status === "rejected" ? result.reason : "Unknown error",
       }));
 
     return NextResponse.json({

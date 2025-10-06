@@ -7,7 +7,6 @@ import { CopilotSidebar } from "@copilotkit/react-ui";
 import {
   ActionQueueSection,
   AddRepositoryModal,
-  BenchmarkInsightsSection,
   ControlTowerHero,
   DashboardHeader,
   DeveloperInsightsSection,
@@ -16,9 +15,10 @@ import {
   HealthOverviewSection,
   OverviewSection,
   ReportModal,
-  WorkflowSignalsSection,
 } from "@/components/dashboard";
-import DatadogErrorsSection from "@/components/DatadogErrorsSection";
+import { WidgetizedErrorsSection } from "@/components/widgets/WidgetizedErrorsSection";
+import { WidgetizedWorkflowSection } from "@/components/widgets/WidgetizedWorkflowSection";
+import { WidgetizedBenchmarksSection } from "@/components/widgets/WidgetizedBenchmarksSection";
 import { useRepositoryDashboard } from "@/hooks/useRepositoryDashboard";
 import {
   calculateDeveloperEfficiency,
@@ -497,12 +497,12 @@ export default function ManagerDashboard() {
                   </div>
                 </div>
                 <div className="flex flex-col gap-8">
-                  <WorkflowSignalsSection
+                  <WidgetizedWorkflowSection
                     sizeVsTimeData={sizeVsTimeData}
                     reviewVsMergeData={reviewVsMergeData}
                     prSizeDistribution={prSizeDistribution}
                   />
-                  <BenchmarkInsightsSection
+                  <WidgetizedBenchmarksSection
                     speedData={comparisonSpeedData}
                     qualityData={comparisonQualityData}
                     insights={comparisonInsights}
@@ -519,7 +519,7 @@ export default function ManagerDashboard() {
                 </header>
                 <div className="flex flex-col gap-8">
                   <ActionQueueSection actionGroups={actionGroups} />
-                  <DatadogErrorsSection
+                  <WidgetizedErrorsSection
                     owner={selectedRepository.owner}
                     name={selectedRepository.name}
                   />

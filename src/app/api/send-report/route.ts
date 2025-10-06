@@ -53,11 +53,6 @@ export interface ReportPayload {
   distributions?: unknown;
 }
 
-interface SendResult {
-  email: string;
-  messageId?: string;
-}
-
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -100,11 +95,12 @@ export async function POST(request: NextRequest) {
     );
 
     const successful = results
-      .filter((r): r is PromiseFulfilledResult<SendResult> => r.status === "fulfilled")
-      .map((r) => r.value);
+      .filter((r) => r.status === "fulfilled")
+      .map((r) => r.status === "fulfilled" ? r.value : null)
+      .filter((v) => v !== null);
     const failed = results
-      .filter((r): r is PromiseRejectedResult => r.status === "rejected")
-      .map((r, idx) => ({ email: recipients[idx], error: r.reason }));
+      .filter((r) => r.status === "rejected")
+      .map((r, idx) => ({ email: recipients[idx], error: r.status === "rejected" ? r.reason : "Unknown error" }));
 
     return NextResponse.json({
       success: true,
@@ -289,7 +285,7 @@ async function summarizeWithAnthropic(payload: ReportPayload): Promise<string | 
       errors: payload?.errors ? {
         total: payload.errors.total,
         topMessages: payload.errors.topMessages,
-      } : null,
+      } : undefined,
       chartsSummary: payload?.chartsSummary,
       benchmarks: payload?.benchmarks,
       distributions: payload?.distributions,
