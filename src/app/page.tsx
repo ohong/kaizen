@@ -36,6 +36,8 @@ import {
 } from "@/lib/dashboard";
 import { fetchErrorsSummary, type ErrorsSummary } from "@/lib/errors";
 import { buildRepositoryUrl, parseRepositoryFromUrl } from "@/lib/repository-utils";
+import { supabase } from "@/lib/supabase";
+import { fetchUserRepositories, type GithubRepositoryOption } from "@/lib/github";
 
 const AVAILABLE_EMAILS = [
   "javokhir@raisedash.com",
@@ -109,10 +111,70 @@ export default function ManagerDashboard() {
   const [addRepoError, setAddRepoError] = useState<string | null>(null);
   const [errorsSummary, setErrorsSummary] = useState<ErrorsSummary | null>(null);
   const [errorsSummaryLoading, setErrorsSummaryLoading] = useState(false);
+  const [githubToken, setGithubToken] = useState<string | null>(null);
+  const [githubUsername, setGithubUsername] = useState<string | null>(null);
+  const [githubRepos, setGithubRepos] = useState<GithubRepositoryOption[]>([]);
+  const [githubReposLoading, setGithubReposLoading] = useState(false);
+
+  const refreshGithubRepos = useCallback(async () => {
+    if (!githubToken) return;
+    try {
+      setGithubReposLoading(true);
+      const repos = await fetchUserRepositories(200);
+      setGithubRepos(repos);
+    } catch (err) {
+      console.error("Failed to load GitHub repositories", err);
+    } finally {
+      setGithubReposLoading(false);
+    }
+  }, [githubToken]);
 
   const handleSync = useCallback(() => {
     void refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const updateFromSession = (session: any | null) => {
+      if (!mounted) return;
+      setGithubToken(session?.provider_token ?? null);
+      const metadata = session?.user?.user_metadata ?? {};
+      setGithubUsername(
+        metadata.user_name || metadata.preferred_username || metadata.name || metadata.login || null
+      );
+    };
+
+    supabase.auth.getSession().then(({ data }) => {
+      updateFromSession(data.session);
+      if (data.session?.provider_token) {
+        void refreshGithubRepos();
+      }
+    });
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      updateFromSession(session);
+      if (session?.provider_token) {
+        void refreshGithubRepos();
+      }
+    });
+
+    return () => {
+      mounted = false;
+      authListener?.subscription.unsubscribe();
+    };
+  }, [refreshGithubRepos]);
+
+  const handleConnectGithub = useCallback(() => {
+    const redirectTo = `${window.location.origin}/auth/callback`;
+    void supabase.auth.signInWithOAuth({
+      provider: "github",
+      options: {
+        redirectTo,
+        scopes: "read:user repo",
+      },
+    });
+  }, []);
 
   const repoMetrics = useMemo(() => {
     return repositoryMetrics.find(
@@ -372,7 +434,7 @@ export default function ManagerDashboard() {
         return;
       }
       if (!token) {
-        setAddRepoError("Provide a GitHub personal access token with repo read access.");
+        setAddRepoError("Connect a GitHub account with repo read access before adding a repository.");
         return;
       }
       setAddingRepository(true);
@@ -405,7 +467,10 @@ export default function ManagerDashboard() {
   const handleOpenAddRepoModal = useCallback(() => {
     setAddRepoError(null);
     setShowAddRepoModal(true);
-  }, []);
+    if (githubToken) {
+      void refreshGithubRepos();
+    }
+  }, [githubToken, refreshGithubRepos]);
 
   const handleNavigateToFeedback = useCallback(() => {
     router.push("/feedback");
@@ -520,6 +585,14 @@ export default function ManagerDashboard() {
           open={showAddRepoModal}
           submitting={addingRepository}
           error={addRepoError}
+          githubToken={githubToken}
+          githubUsername={githubUsername}
+          repositoryOptions={githubRepos}
+          repositoriesLoading={githubReposLoading}
+          onConnectGithub={handleConnectGithub}
+          onRefreshRepositories={() => {
+            void refreshGithubRepos();
+          }}
           onSubmit={handleAddRepository}
           onClose={() => {
             setShowAddRepoModal(false);

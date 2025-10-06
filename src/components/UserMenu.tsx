@@ -10,6 +10,7 @@ interface SessionUser {
   userId: string | null;
   fullName: string | null;
   avatarUrl: string | null;
+  githubConnected: boolean;
 }
 
 export function UserMenu() {
@@ -34,7 +35,8 @@ export function UserMenu() {
     const userId = sessionUser.id ?? null;
     const fullName = (sessionUser.user_metadata?.full_name || sessionUser.user_metadata?.name || null) as string | null;
     const avatarUrl = (sessionUser.user_metadata?.avatar_url || sessionUser.user_metadata?.picture || null) as string | null;
-    setUser({ email, userId, fullName, avatarUrl });
+    const githubConnected = Boolean(session.provider_token);
+    setUser({ email, userId, fullName, avatarUrl, githubConnected });
     setLoading(false);
   }, []);
 
@@ -49,9 +51,20 @@ export function UserMenu() {
     };
   }, [loadSession]);
 
-  const handleSignin = useCallback(async () => {
+  const handleGoogleSignin = useCallback(async () => {
     const redirectTo = `${window.location.origin}/auth/callback`;
     await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo } });
+  }, []);
+
+  const handleGithubSignin = useCallback(async () => {
+    const redirectTo = `${window.location.origin}/auth/callback`;
+    await supabase.auth.signInWithOAuth({
+      provider: "github",
+      options: {
+        redirectTo,
+        scopes: "read:user repo",
+      },
+    });
   }, []);
 
   const handleSignout = useCallback(async () => {
@@ -78,13 +91,22 @@ export function UserMenu() {
 
   if (!user) {
     return (
-      <button
-        type="button"
-        onClick={handleSignin}
-        className="hud-glow border border-[var(--hud-accent)] bg-[var(--hud-accent)] px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-[var(--hud-bg)] transition-all duration-200 hover:bg-[var(--hud-accent-dim)]"
-      >
-        Sign in
-      </button>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={handleGithubSignin}
+          className="hud-glow border border-[var(--hud-accent)] bg-[var(--hud-accent)] px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-[var(--hud-bg)] transition-all duration-200 hover:bg-[var(--hud-accent-dim)]"
+        >
+          Sign in with GitHub
+        </button>
+        <button
+          type="button"
+          onClick={handleGoogleSignin}
+          className="border border-[var(--hud-border)] bg-[var(--hud-bg-elevated)] px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-[var(--hud-text-dim)] transition-all duration-200 hover:border-[var(--hud-accent)]/60 hover:text-[var(--hud-text-bright)]"
+        >
+          Google
+        </button>
+      </div>
     );
   }
 
@@ -105,6 +127,15 @@ export function UserMenu() {
       )}
       <div className="hidden flex-col leading-tight sm:flex">
         <span className="text-xs text-[var(--hud-text)] max-w-[220px] truncate">{user.fullName || user.email}</span>
+        {!user.githubConnected && (
+          <button
+            type="button"
+            onClick={handleGithubSignin}
+            className="self-start text-[10px] uppercase tracking-wider text-[var(--hud-accent)] hover:underline"
+          >
+            Connect GitHub
+          </button>
+        )}
         <button
           type="button"
           onClick={handleSignout}
@@ -116,5 +147,3 @@ export function UserMenu() {
     </div>
   );
 }
-
-
