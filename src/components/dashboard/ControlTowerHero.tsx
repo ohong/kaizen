@@ -9,14 +9,15 @@ export function ControlTowerHero({ owner, name }: ControlTowerHeroProps) {
       <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
         <div className="space-y-4">
           <div className="font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
-            ◢ Control Center
+            ◢ Engineering Command Center
           </div>
           <h1 className="text-4xl font-semibold text-[var(--hud-text-bright)]">
-            Delivery Control Tower
+            Engineering Command Center
           </h1>
           <p className="max-w-3xl text-sm text-[var(--hud-text-dim)]">
-            One view of how quickly we ship, where work is stalling, and which teammates need support.
-            Built for the engineering manager to steer the Supabase platform team.
+            A single surface for shipping pace, review throughput, and production health. The Velocity,
+            Review Flow, and Ops Signals modules stay in sync so you can spot stuck pull requests, coach the
+            team, and steady production—without bouncing between tools.
           </p>
         </div>
         <div className="min-w-[220px] rounded-lg border border-[var(--hud-border)] bg-[var(--hud-bg)] px-4 py-3 text-right">

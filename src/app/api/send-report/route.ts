@@ -112,12 +112,12 @@ export async function POST(request: NextRequest) {
       failedCount: failed.length,
       successful,
       failed,
-      message: `Successfully sent ${successful.length} of ${recipients.length} report emails`,
+      message: `Successfully sent ${successful.length} of ${recipients.length} exec reports`,
     });
   } catch (error) {
-    console.error("Error sending report emails:", error);
+    console.error("Error sending exec reports:", error);
     return NextResponse.json(
-      { error: "Failed to send report emails", details: error instanceof Error ? error.message : "Unknown error" },
+      { error: "Failed to send exec reports", details: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }
     );
   }
@@ -128,7 +128,7 @@ function buildSubject(payload: ReportPayload): string {
   const repoName = payload?.repository?.name ?? "";
   const repo = repoOwner && repoName ? `${repoOwner}/${repoName}` : "Repository";
   const score = payload?.health?.healthScore ?? "—";
-  return `Kaizen Delivery Report • ${repo} • Health ${score}`;
+  return `Kaizen Exec Report • ${repo} • Health ${score}`;
 }
 
 function generateReportEmailHTML(payload: ReportPayload, llmSummary?: string): string {
@@ -155,7 +155,7 @@ function generateReportEmailHTML(payload: ReportPayload, llmSummary?: string): s
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Kaizen Delivery Report</title>
+  <title>Kaizen Exec Report</title>
   <style>
     body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;background:#f8fafc;color:#1e293b;margin:0;padding:24px}
     .container{max-width:680px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1)}
@@ -177,7 +177,7 @@ function generateReportEmailHTML(payload: ReportPayload, llmSummary?: string): s
     <div class="container">
       <div class="header">
         <div class="logo">KAIZEN</div>
-        <h1>Delivery Report • ${repoOwner}/${repoName}</h1>
+        <h1>Exec Report • ${repoOwner}/${repoName}</h1>
         <div class="muted">Latest Sync: ${latestSync ? new Date(latestSync).toLocaleString() : "—"}</div>
       </div>
 
@@ -206,7 +206,7 @@ function generateReportEmailHTML(payload: ReportPayload, llmSummary?: string): s
       </div>
 
       <div class="section">
-        <div class="muted">Operational Errors (7d)</div>
+        <div class="muted">Ops Signals (7d)</div>
         <div style="margin-top:6px">
           <span class="pill">Total ${fmt(errorsTotal)}</span>
           ${topMessages.map((m) => `<span class="pill">${escapeHtml(m.message).slice(0,60)} (${m.count})</span>`).join('')}
@@ -229,7 +229,7 @@ function generateReportEmailHTML(payload: ReportPayload, llmSummary?: string): s
 
       ${summaryHtml ? `
       <div class="section">
-        <div class="muted">LLM Summary (Anthropic)</div>
+        <div class="muted">Executive Summary (Anthropic)</div>
         <div class="card" style="margin-top:8px">
           ${summaryHtml}
         </div>
@@ -274,7 +274,7 @@ async function summarizeWithAnthropic(payload: ReportPayload): Promise<string | 
       if (readError instanceof Error) {
         console.warn("Falling back to default summary prompt:", readError.message);
       }
-      systemPrompt = "You are an expert engineering delivery advisor. Summarize concisely with actionable next steps.";
+      systemPrompt = "You are a Kaizen engineering advisor. Summarize concisely with actionable next steps.";
     }
 
     const model = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5-20250929";
@@ -296,8 +296,8 @@ async function summarizeWithAnthropic(payload: ReportPayload): Promise<string | 
     };
 
     const instructions = [
-      "You are writing the concluding executive summary for an engineering delivery report.",
-      "Summarize current delivery health, cycle time, PR backlog, review responsiveness, and operational errors.",
+      "You are writing the Kaizen exec report for engineering leadership.",
+      "Summarize team velocity, review responsiveness, backlog risk, and operational signals using concrete metrics.",
       "Use crisp bullets, avoid fluff, prefer concrete numbers from the data.",
       "Limit to 120-180 words.",
       "End with 'Next 7 days focus:' and 2 short items.",

@@ -67,7 +67,7 @@ export function ReportModal({
       <div className="relative z-10 w-full max-w-3xl hud-panel hud-corner p-6">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-xl font-semibold text-[var(--hud-text-bright)]">
-            Send Delivery Report
+            Send Exec Report
           </h3>
           <button
             type="button"
@@ -215,7 +215,7 @@ export function ReportModal({
             disabled={sending || selectedEmails.length === 0}
             className="hud-glow border border-[var(--hud-accent)] bg-[var(--hud-accent)] px-6 py-2 font-mono text-xs uppercase tracking-wider text-[var(--hud-bg)] transition-all duration-200 hover:bg-[var(--hud-accent-dim)] disabled:cursor-not-allowed disabled:opacity-40"
           >
-            {sending ? "Sending…" : `Send Report (${selectedEmails.length})`}
+            {sending ? "Sending…" : `Send Exec Report (${selectedEmails.length})`}
           </button>
         </div>
       </div>

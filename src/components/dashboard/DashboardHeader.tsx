@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { UserMenu } from "@/components/UserMenu";
 
 import type { RepositoryOption } from "@/lib/repository-utils";
@@ -36,14 +37,16 @@ export function DashboardHeader({
     <header className="sticky top-0 z-50 border-b border-[var(--hud-border)] bg-[var(--hud-bg)]/95 backdrop-blur-sm">
       <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-4 px-8 py-5">
         <div className="flex flex-wrap items-center gap-4">
-          <Image
-            src="/logo.png"
-            alt="Kaizen"
-            width={140}
-            height={40}
-            className="h-10 w-auto opacity-90"
-            priority
-          />
+          <Link href="/" aria-label="Back to dashboard">
+            <Image
+              src="/logo.png"
+              alt="Kaizen"
+              width={140}
+              height={40}
+              className="h-10 w-auto opacity-90"
+              priority
+            />
+          </Link>
           <div className="hidden h-8 w-px bg-[var(--hud-border)] md:block" />
           <div className="font-mono text-xs uppercase tracking-[0.35em] text-[var(--hud-text-dim)]">
             <span className="text-[var(--hud-accent)]">▸</span> {`${owner}/${name}`.toUpperCase()}

@@ -230,7 +230,7 @@ function generateSurveyEmailHTML(surveyData?: SurveyData): string {
     </div>
     
     <div class="footer">
-      <p>Sent via Kaizen Control Tower</p>
+      <p>Sent via Kaizen</p>
       <p>This is an automated survey. Please do not reply to this email.</p>
     </div>
   </div>

@@ -21,11 +21,11 @@ export function GuidedActionsPanel({ onAddRepository, onSync, onOpenReport }: Gu
       helper: "Runs in the background; leave the page open to watch updates roll in.",
     },
     {
-      title: "Share the weekly digest",
-      description: "Email the current insights and charts to your leadership or team leads.",
-      ctaLabel: "Send report",
+      title: "Share the exec report",
+      description: "Email the Kaizen exec report and charts to leadership or team leads.",
+      ctaLabel: "Send exec report",
       onClick: onOpenReport,
-      helper: "Uses the recipients you pick in the Send Report modal.",
+      helper: "Uses the recipient list you configure in the report modal.",
     },
   ];
 
