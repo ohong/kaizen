@@ -40,20 +40,23 @@ export function DatadogErrorsSection({ owner, name }: DatadogErrorsSectionProps)
           .select("id")
           .eq("owner", owner)
           .eq("name", name)
-          .limit(1);
+          .maybeSingle<{ id: string }>();
 
         if (error) throw error;
-        if (!data || data.length === 0) {
+        if (!data) {
           if (!isCancelled) {
             setRepoId(null);
           }
           return;
         }
         if (!isCancelled) {
-          setRepoId((data[0] as any).id as string);
+          setRepoId(data.id);
         }
-      } catch (e: any) {
-        if (!isCancelled) setError(e?.message ?? "Failed to load repository");
+      } catch (e: unknown) {
+        if (!isCancelled) {
+          const message = e instanceof Error ? e.message : "Failed to load repository";
+          setError(message);
+        }
       }
     }
     loadRepoId();
@@ -69,6 +72,7 @@ export function DatadogErrorsSection({ owner, name }: DatadogErrorsSectionProps)
       setLoading(false);
       return;
     }
+    const currentRepoId = repoId;
     let isCancelled = false;
     async function loadErrors() {
       setLoading(true);
@@ -79,16 +83,17 @@ export function DatadogErrorsSection({ owner, name }: DatadogErrorsSectionProps)
         const { data, error } = await supabase
           .from("datadog_errors")
           .select("*")
-          .eq("repository_id", repoId!)
+          .eq("repository_id", currentRepoId)
           .gte("occurred_at", since.toISOString())
           .order("occurred_at", { ascending: false })
           .limit(500);
         if (error) throw error;
         if (!isCancelled) setErrors(data ?? []);
-      } catch (e: any) {
+      } catch (e: unknown) {
         if (!isCancelled) {
           setErrors([]);
-          setError(e?.message ?? "Failed to load Datadog errors");
+          const message = e instanceof Error ? e.message : "Failed to load Datadog errors";
+          setError(message);
         }
       } finally {
         if (!isCancelled) setLoading(false);
@@ -213,7 +218,7 @@ export function DatadogErrorsSection({ owner, name }: DatadogErrorsSectionProps)
                   contentStyle={{ background: "#0f172a", border: "1px solid #334155" }}
                   labelStyle={{ color: "#cbd5e1" }}
                   itemStyle={{ color: "#cbd5e1" }}
-                  formatter={(value: any) => [value, "Errors"]}
+                  formatter={(value: number | string) => [value, "Errors"]}
                 />
                 <Line type="monotone" dataKey="count" stroke="#ef4444" strokeWidth={2} dot={false} />
               </ReLineChart>

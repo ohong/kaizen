@@ -1,5 +1,4 @@
 import { supabase } from './supabase';
-import type { Repository } from './types/database';
 
 /**
  * Repository utilities for filtering and selecting repositories
@@ -43,12 +42,12 @@ export async function getAvailableRepositories(): Promise<RepositoryOption[]> {
     if (countError) throw countError;
 
     // Count PRs and contributors per repo
-    const repoStats = prCounts?.reduce((acc: any, pr) => {
+    const repoStats = (prCounts ?? []).reduce<Record<string, { prCount: number }>>((acc, pr) => {
       const key = `${pr.repository_owner}/${pr.repository_name}`;
       if (!acc[key]) {
-        acc[key] = { prCount: 0, contributors: new Set() };
+        acc[key] = { prCount: 0 };
       }
-      acc[key].prCount++;
+      acc[key].prCount += 1;
       return acc;
     }, {});
 
@@ -57,20 +56,22 @@ export async function getAvailableRepositories(): Promise<RepositoryOption[]> {
       .from('developer_metrics')
       .select('repository_owner, repository_name, author');
 
-    const contributorCounts = devMetrics?.reduce((acc: any, dev) => {
+    const contributorCounts = (devMetrics ?? []).reduce<Record<string, Set<string>>>((acc, dev) => {
       const key = `${dev.repository_owner}/${dev.repository_name}`;
       if (!acc[key]) {
-        acc[key] = new Set();
+        acc[key] = new Set<string>();
       }
-      acc[key].add(dev.author);
+      if (typeof dev.author === 'string') {
+        acc[key].add(dev.author);
+      }
       return acc;
     }, {});
 
     // Combine data
     const options: RepositoryOption[] = (repos || []).map(repo => {
       const key = `${repo.owner}/${repo.name}`;
-      const stats = repoStats?.[key] || { prCount: 0 };
-      const contributors = contributorCounts?.[key] || new Set();
+      const stats = repoStats[key] ?? { prCount: 0 };
+      const contributors = contributorCounts[key] ?? new Set<string>();
 
       return {
         owner: repo.owner,

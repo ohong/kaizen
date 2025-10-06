@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
+import type { TooltipProps } from "recharts";
 
 interface DistributionData {
   category: string;
@@ -49,16 +50,20 @@ export function DistributionChart({
     );
   }
 
-  const CustomTooltip = ({ active, payload }: any) => {
-    if (!active || !payload || !payload.length) return null;
+  const CustomTooltip = ({ active, payload }: TooltipProps<number, string>) => {
+    if (!active || !payload || payload.length === 0) return null;
 
-    const data = payload[0].payload;
+    const firstItem = payload[0];
+    if (!firstItem || typeof firstItem.payload !== "object" || firstItem.payload === null) {
+      return null;
+    }
+    const chartDatum = firstItem.payload as DistributionData;
 
     return (
       <div className="rounded-lg border border-slate-700 bg-slate-900 p-3 shadow-lg">
-        <p className="mb-1 text-sm font-medium text-white">{data.category}</p>
+        <p className="mb-1 text-sm font-medium text-white">{chartDatum.category}</p>
         <p className="text-xs text-slate-300">
-          {yLabel}: <span className="font-semibold text-white">{data.value}{valueUnit}</span>
+          {yLabel}: <span className="font-semibold text-white">{chartDatum.value}{valueUnit}</span>
         </p>
       </div>
     );
@@ -74,6 +79,7 @@ export function DistributionChart({
             dataKey="category"
             stroke="#94a3b8"
             tick={{ fill: "#94a3b8", fontSize: 12 }}
+            label={{ value: xLabel, position: "insideBottom", offset: -10, fill: "#94a3b8" }}
           />
           <YAxis
             stroke="#94a3b8"

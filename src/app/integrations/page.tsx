@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
@@ -10,14 +10,26 @@ import type { RepositoryOption } from "@/lib/repository-utils";
 
 type Integration = Database['public']['Tables']['integrations']['Row'];
 type IntegrationInsert = Database['public']['Tables']['integrations']['Insert'];
-type Repository = Database['public']['Tables']['repositories']['Row'];
 
 interface DatadogIntegrationForm {
-  repositoryId: string;
   name: string;
   apiKey: string;
   appKey: string;
   site: string;
+}
+
+interface SyncSummary {
+  from: string;
+  to: string;
+  query: string;
+  pages: number;
+  processed: number;
+  upserted: number;
+}
+
+interface DatadogSyncResponse {
+  error?: string;
+  summary?: SyncSummary;
 }
 
 export default function IntegrationsPage() {
@@ -32,7 +44,6 @@ export default function IntegrationsPage() {
   const [error, setError] = useState<string | null>(null);
   const [showDatadogForm, setShowDatadogForm] = useState(false);
   const [formData, setFormData] = useState<DatadogIntegrationForm>({
-    repositoryId: '',
     name: '',
     apiKey: '',
     appKey: '',
@@ -44,14 +55,7 @@ export default function IntegrationsPage() {
   const [syncIntegration, setSyncIntegration] = useState<Integration | null>(null);
   const [syncSubmitting, setSyncSubmitting] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
-  const [syncSummary, setSyncSummary] = useState<{
-    from: string;
-    to: string;
-    query: string;
-    pages: number;
-    processed: number;
-    upserted: number;
-  } | null>(null);
+  const [syncSummary, setSyncSummary] = useState<SyncSummary | null>(null);
   const [syncingIntegrationId, setSyncingIntegrationId] = useState<string | null>(null);
   const [syncForm, setSyncForm] = useState({
     days: 7,
@@ -64,12 +68,17 @@ export default function IntegrationsPage() {
     maxPages: 10,
   });
 
-  // Load repositories and integrations
-  useEffect(() => {
-    loadData();
-  }, [selectedRepository]);
+  const getRepositoryId = useCallback(async (repo: { owner: string; name: string }): Promise<string | null> => {
+    const { data } = await supabase
+      .from('repositories')
+      .select('id')
+      .eq('owner', repo.owner)
+      .eq('name', repo.name)
+      .single<{ id: string }>();
+    return data?.id ?? null;
+  }, []);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -79,33 +88,33 @@ export default function IntegrationsPage() {
       setRepositories(availableRepos);
 
       // Load integrations for the selected repository
-      const { data: integrations, error: integrationsError } = await supabase
+      const repositoryId = await getRepositoryId(selectedRepository);
+      if (!repositoryId) {
+        setIntegrations([]);
+        return;
+      }
+
+      const { data: integrationsData, error: integrationsError } = await supabase
         .from('integrations')
-        .select('id, repository_id, type, name, status, config, created_at, updated_at')
-        .eq('repository_id', (await getRepositoryId(selectedRepository)) || '')
+        .select('id, repository_id, type, name, status, config, created_at, updated_at, datadog_api_key, datadog_app_key')
+        .eq('repository_id', repositoryId)
         .order('created_at', { ascending: false });
 
       if (integrationsError) throw integrationsError;
 
-      setIntegrations(integrations || []);
+      setIntegrations(integrationsData ?? []);
     } catch (err) {
       console.error('Error loading data:', err);
       setError(err instanceof Error ? err.message : 'Failed to load data');
     } finally {
       setLoading(false);
     }
-  };
+  }, [getRepositoryId, selectedRepository]);
 
-  // Helper function to get repository ID from owner/name
-  const getRepositoryId = async (repo: { owner: string; name: string }): Promise<string | null> => {
-    const { data } = await supabase
-      .from('repositories')
-      .select('id')
-      .eq('owner', repo.owner)
-      .eq('name', repo.name)
-      .single();
-    return (data as any)?.id || null;
-  };
+  // Load repositories and integrations
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
 
   const handleRepositoryChange = (owner: string, name: string) => {
     const newUrl = buildRepositoryUrl(owner, name, '/integrations');
@@ -129,11 +138,11 @@ export default function IntegrationsPage() {
         throw new Error('Repository not found');
       }
 
-      const integrationData = {
+      const integrationData: IntegrationInsert = {
         repository_id: repositoryId,
-        type: 'datadog' as const,
+        type: 'datadog',
         name: formData.name,
-        status: 'active' as const,
+        status: 'active',
         config: {
           site: formData.site
         },
@@ -143,16 +152,17 @@ export default function IntegrationsPage() {
 
       const { data, error } = await supabase
         .from('integrations')
-        .insert(integrationData as any)
+        .insert(integrationData)
         .select()
-        .single();
+        .single<Integration>();
 
       if (error) throw error;
 
-      setIntegrations(prev => [data, ...prev]);
+      if (data) {
+        setIntegrations(prev => [data, ...prev]);
+      }
       setShowDatadogForm(false);
       setFormData({
-        repositoryId: '',
         name: '',
         apiKey: '',
         appKey: '',
@@ -253,11 +263,11 @@ export default function IntegrationsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      const json = await res.json();
+      const json = (await res.json()) as DatadogSyncResponse;
       if (!res.ok) {
-        throw new Error(json?.error || 'Failed to sync Datadog logs');
+        throw new Error(json.error || 'Failed to sync Datadog logs');
       }
-      setSyncSummary(json?.summary ?? null);
+      setSyncSummary(json.summary ?? null);
     } catch (err) {
       console.error('Sync failed:', err);
       setSyncError(err instanceof Error ? err.message : 'Failed to sync Datadog logs');
@@ -267,8 +277,8 @@ export default function IntegrationsPage() {
     }
   };
 
-  const getRepositoryName = (repositoryId: string) => {
-    // Since we're now filtering by repository, all integrations belong to the selected repository
+  const getSelectedRepositoryName = () => {
+    // Since we're filtering by repository, all integrations belong to the selected repository
     return `${selectedRepository.owner}/${selectedRepository.name}`;
   };
 
@@ -547,7 +557,7 @@ export default function IntegrationsPage() {
                           {integration.name || `${integration.type} Integration`}
                         </h3>
                         <p className="text-sm text-[var(--hud-text-dim)]">
-                          {getRepositoryName(integration.repository_id)}
+                          {getSelectedRepositoryName()}
                         </p>
                         <div className="flex items-center space-x-2 mt-1">
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getIntegrationStatusColor(integration.status)}`}>

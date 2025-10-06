@@ -41,8 +41,12 @@ export default function AuthCallbackPage() {
         }
         setMessage("Signed in! Redirecting…");
         setTimeout(() => router.replace("/"), 400);
-      } catch (e: any) {
-        setMessage(e?.message ?? "Unexpected error during authentication");
+      } catch (error: unknown) {
+        if (error instanceof Error) {
+          setMessage(error.message);
+        } else {
+          setMessage("Unexpected error during authentication");
+        }
       }
     };
     void run();
@@ -66,5 +70,4 @@ export default function AuthCallbackPage() {
     </div>
   );
 }
-
 

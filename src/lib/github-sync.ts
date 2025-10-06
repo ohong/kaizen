@@ -29,6 +29,45 @@ export interface RepositorySyncResult {
   errorCount: number;
 }
 
+interface GitHubPullSummary {
+  number: number;
+}
+
+interface GitHubUser {
+  login?: string | null;
+  avatar_url?: string | null;
+}
+
+interface GitHubPullHeadBase {
+  ref?: string | null;
+}
+
+interface GitHubPullDetail extends GitHubPullSummary {
+  title: string;
+  body: string | null;
+  state: "open" | "closed" | string;
+  user?: GitHubUser | null;
+  created_at: string;
+  updated_at: string;
+  merged_at: string | null;
+  closed_at: string | null;
+  html_url: string;
+  draft: boolean;
+  labels?: unknown[];
+  requested_reviewers?: unknown[];
+  requested_teams?: unknown[];
+  head?: GitHubPullHeadBase | null;
+  base?: GitHubPullHeadBase | null;
+  additions?: number | null;
+  deletions?: number | null;
+  changed_files?: number | null;
+  commits?: number | null;
+  comments?: number | null;
+  review_comments?: number | null;
+  mergeable_state?: string | null;
+  assignees?: unknown[];
+}
+
 const DEFAULT_SYNC_COUNT = 100;
 const DEFAULT_STATE: "open" | "closed" | "all" = "all";
 
@@ -139,8 +178,8 @@ export async function fetchPRsForRepo(
   token: string,
   state: "open" | "closed" | "all" = DEFAULT_STATE,
   startPage: number = 1
-): Promise<any[]> {
-  const allPRs: any[] = [];
+): Promise<GitHubPullSummary[]> {
+  const allPRs: GitHubPullSummary[] = [];
   let page = Math.max(1, startPage);
   const perPage = Math.min(100, count);
 
@@ -164,11 +203,15 @@ export async function fetchPRsForRepo(
       throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
     }
 
-    const prs = await response.json();
-    if (prs.length === 0) break;
+    const prs = (await response.json()) as unknown;
+    if (!Array.isArray(prs) || prs.length === 0) break;
 
-    allPRs.push(...prs);
-    if (prs.length < perPage || allPRs.length >= count) break;
+    const validPRs = prs.filter((item): item is GitHubPullSummary =>
+      item !== null && typeof item === "object" && typeof (item as { number?: unknown }).number === "number"
+    );
+
+    allPRs.push(...validPRs);
+    if (validPRs.length < perPage || allPRs.length >= count) break;
 
     page++;
   }
@@ -176,7 +219,7 @@ export async function fetchPRsForRepo(
   return allPRs.slice(0, count);
 }
 
-export async function transformPRData(pr: any, owner: string, name: string, token: string) {
+export async function transformPRData(pr: GitHubPullSummary, owner: string, name: string, token: string) {
   const detailUrl = `https://api.github.com/repos/${owner}/${name}/pulls/${pr.number}`;
   const detailResponse = await fetch(detailUrl, {
     headers: {
@@ -190,7 +233,7 @@ export async function transformPRData(pr: any, owner: string, name: string, toke
     throw new Error(`Failed to fetch PR details: ${detailResponse.status}`);
   }
 
-  const prDetail = await detailResponse.json();
+  const prDetail = (await detailResponse.json()) as GitHubPullDetail;
 
   const createdAt = new Date(prDetail.created_at);
   const mergedAt = prDetail.merged_at ? new Date(prDetail.merged_at) : null;

@@ -45,7 +45,7 @@ export default function FeedbackPage() {
   const [sendResult, setSendResult] = useState<{
     success: boolean;
     message: string;
-    details?: any;
+    details?: unknown;
   } | null>(null);
   const [showComposer, setShowComposer] = useState(false);
 

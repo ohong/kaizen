@@ -5,10 +5,63 @@ import { promises as fs } from "fs";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+interface ReportRepository {
+  owner?: string;
+  name?: string;
+}
+
+interface ReportHealth {
+  healthScore?: number;
+  summary?: string;
+  openPrCount?: number;
+  stalePrCount?: number;
+  throughputPerWeek?: number;
+  mergeRate?: number;
+  avgMergeHours?: number;
+  avgTimeToFirstReview?: number;
+}
+
+interface ReportErrorSummary {
+  message: string;
+  count: number;
+}
+
+interface ReportErrors {
+  total?: number;
+  topMessages?: ReportErrorSummary[];
+}
+
+interface ReportDeveloperScore {
+  author: string;
+  overallScore: number;
+}
+
+interface ReportDevelopers {
+  top?: ReportDeveloperScore[];
+  needsAttention?: ReportDeveloperScore[];
+}
+
+export interface ReportPayload {
+  repository?: ReportRepository;
+  latestSync?: string | null;
+  health?: ReportHealth;
+  developers?: ReportDevelopers;
+  actionQueue?: unknown;
+  errors?: ReportErrors;
+  chartsSummary?: unknown;
+  benchmarks?: unknown;
+  distributions?: unknown;
+}
+
+interface SendResult {
+  email: string;
+  messageId?: string;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { recipients, payload } = body as { recipients: string[]; payload: any };
+    const { recipients, payload } = body as { recipients: string[]; payload: ReportPayload };
 
     if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {
       return NextResponse.json(
@@ -47,11 +100,11 @@ export async function POST(request: NextRequest) {
     );
 
     const successful = results
-      .filter((r) => r.status === "fulfilled")
-      .map((r) => (r as PromiseFulfilledResult<any>).value);
+      .filter((r): r is PromiseFulfilledResult<SendResult> => r.status === "fulfilled")
+      .map((r) => r.value);
     const failed = results
-      .filter((r) => r.status === "rejected")
-      .map((r, idx) => ({ email: recipients[idx], error: (r as PromiseRejectedResult).reason }));
+      .filter((r): r is PromiseRejectedResult => r.status === "rejected")
+      .map((r, idx) => ({ email: recipients[idx], error: r.reason }));
 
     return NextResponse.json({
       success: true,
@@ -70,13 +123,15 @@ export async function POST(request: NextRequest) {
   }
 }
 
-function buildSubject(payload: any): string {
-  const repo = payload?.repository ? `${payload.repository.owner}/${payload.repository.name}` : "Repository";
+function buildSubject(payload: ReportPayload): string {
+  const repoOwner = payload?.repository?.owner ?? "";
+  const repoName = payload?.repository?.name ?? "";
+  const repo = repoOwner && repoName ? `${repoOwner}/${repoName}` : "Repository";
   const score = payload?.health?.healthScore ?? "—";
   return `Kaizen Delivery Report • ${repo} • Health ${score}`;
 }
 
-function generateReportEmailHTML(payload: any, llmSummary?: string): string {
+function generateReportEmailHTML(payload: ReportPayload, llmSummary?: string): string {
   const repoOwner = payload?.repository?.owner ?? "";
   const repoName = payload?.repository?.name ?? "";
   const healthScore = payload?.health?.healthScore ?? "—";
@@ -89,9 +144,9 @@ function generateReportEmailHTML(payload: any, llmSummary?: string): string {
   const avgMerge = payload?.health?.avgMergeHours ?? null;
   const avgFirstReview = payload?.health?.avgTimeToFirstReview ?? null;
   const errorsTotal = payload?.errors?.total ?? 0;
-  const topMessages: { message: string; count: number }[] = payload?.errors?.topMessages ?? [];
+  const topMessages: ReportErrorSummary[] = payload?.errors?.topMessages ?? [];
 
-  const fmt = (v: any) => (v === null || v === undefined ? "—" : String(v));
+  const fmt = (value: unknown) => (value === null || value === undefined ? "—" : String(value));
   const summaryHtml = llmSummary ? formatSummaryHtml(llmSummary) : null;
 
   return `
@@ -161,14 +216,14 @@ function generateReportEmailHTML(payload: any, llmSummary?: string): string {
       <div class="section">
         <div class="muted">Top Developers</div>
         <ol>
-          ${Array.isArray(payload?.developers?.top) ? payload.developers.top.map((d: any) => `<li>${escapeHtml(d.author)} — ${d.overallScore}</li>`).join('') : ''}
+          ${Array.isArray(payload?.developers?.top) ? payload.developers.top.map((d) => `<li>${escapeHtml(d.author)} — ${d.overallScore}</li>`).join('') : ''}
         </ol>
       </div>
 
       <div class="section">
         <div class="muted">Needs Attention</div>
         <ol>
-          ${Array.isArray(payload?.developers?.needsAttention) ? payload.developers.needsAttention.map((d: any) => `<li>${escapeHtml(d.author)} — ${d.overallScore}</li>`).join('') : ''}
+          ${Array.isArray(payload?.developers?.needsAttention) ? payload.developers.needsAttention.map((d) => `<li>${escapeHtml(d.author)} — ${d.overallScore}</li>`).join('') : ''}
         </ol>
       </div>
 
@@ -203,7 +258,7 @@ function formatSummaryHtml(summary: string): string {
     .replace(/\n/g, '<br/>');
 }
 
-async function summarizeWithAnthropic(payload: any): Promise<string | null> {
+async function summarizeWithAnthropic(payload: ReportPayload): Promise<string | null> {
   try {
     if (!process.env.ANTHROPIC_API_KEY) {
       console.warn("ANTHROPIC_API_KEY not set; skipping LLM summary");
@@ -215,14 +270,17 @@ async function summarizeWithAnthropic(payload: any): Promise<string | null> {
     try {
       const promptPath = path.resolve(process.cwd(), "prompts", "sys-prompt.md");
       systemPrompt = await fs.readFile(promptPath, "utf8");
-    } catch (e) {
+    } catch (readError: unknown) {
+      if (readError instanceof Error) {
+        console.warn("Falling back to default summary prompt:", readError.message);
+      }
       systemPrompt = "You are an expert engineering delivery advisor. Summarize concisely with actionable next steps.";
     }
 
     const model = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5-20250929";
 
     // Trim payload down a bit for the model
-    const condensed = {
+    const condensed: ReportPayload = {
       repository: payload?.repository,
       latestSync: payload?.latestSync,
       health: payload?.health,
@@ -246,7 +304,6 @@ async function summarizeWithAnthropic(payload: any): Promise<string | null> {
     ].join(" \n");
 
     const userContent = `${instructions}\n\nDATA (JSON):\n${JSON.stringify(condensed)}`;
-    console.log("userContent", userContent);
     
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -272,18 +329,25 @@ async function summarizeWithAnthropic(payload: any): Promise<string | null> {
       return null;
     }
     const json = await res.json();
-    const content = Array.isArray(json?.content) ? json.content : [];
-    const firstText = content.find((c: any) => c?.type === "text")?.text;
+    const content = Array.isArray(json?.content) ? (json.content as AnthropicMessageContent[]) : [];
+    const firstText = content.find((c) => c.type === "text")?.text;
     if (typeof firstText === "string" && firstText.trim().length > 0) {
       return firstText.trim();
     }
     // Fallback: try to join any text parts
-    const joined = content.map((c: any) => c?.text).filter(Boolean).join("\n");
+    const joined = content
+      .map((c) => (typeof c.text === "string" ? c.text : null))
+      .filter((value): value is string => Boolean(value))
+      .join("\n");
     return joined ? joined.trim() : null;
-  } catch (e) {
-    console.error("Failed to generate LLM summary:", e);
+  } catch (error) {
+    console.error("Failed to generate LLM summary:", error);
     return null;
   }
 }
 
-
+interface AnthropicMessageContent {
+  type?: string;
+  text?: string;
+  [key: string]: unknown;
+}

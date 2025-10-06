@@ -5,8 +5,8 @@ import "./globals.css";
 import "@copilotkit/react-ui/styles.css";
 
 export const metadata: Metadata = {
-  title: "Kaizen Control Tower",
-  description: "Delivery analytics for engineering leaders",
+  title: "Kaizen Dashboard",
+  description: "Measure and improve engineering velocity",
 };
 
 export default function RootLayout({

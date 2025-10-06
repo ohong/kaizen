@@ -28,14 +28,6 @@ type DatadogLogEvent = {
   [key: string]: unknown;
 };
 
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${name}`);
-  }
-  return value;
-}
-
 function optionalEnv(name: string, fallback?: string): string | undefined {
   return process.env[name] ?? fallback;
 }
@@ -278,5 +270,4 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
-
 

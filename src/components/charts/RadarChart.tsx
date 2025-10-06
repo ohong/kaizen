@@ -10,6 +10,7 @@ import {
   Tooltip,
   Legend,
 } from "recharts";
+import type { TooltipProps } from "recharts";
 
 interface RadarDataPoint {
   dimension: string;
@@ -38,16 +39,20 @@ export function RadarChartViz({
     );
   }
 
-  const CustomTooltip = ({ active, payload }: any) => {
-    if (!active || !payload || !payload.length) return null;
+  const CustomTooltip = ({ active, payload }: TooltipProps<number, string>) => {
+    if (!active || !payload || payload.length === 0) return null;
 
-    const data = payload[0].payload;
+    const firstItem = payload[0];
+    if (!firstItem || typeof firstItem.payload !== "object" || firstItem.payload === null) {
+      return null;
+    }
+    const point = firstItem.payload as RadarDataPoint;
 
     return (
       <div className="rounded-lg border border-slate-700 bg-slate-900 p-3 shadow-lg">
-        <p className="mb-1 text-sm font-medium text-white">{data.dimension}</p>
+        <p className="mb-1 text-sm font-medium text-white">{point.dimension}</p>
         <p className="text-xs text-slate-300">
-          Score: <span className="font-semibold text-white">{data.value} / {data.fullMark}</span>
+          Score: <span className="font-semibold text-white">{point.value} / {point.fullMark}</span>
         </p>
       </div>
     );

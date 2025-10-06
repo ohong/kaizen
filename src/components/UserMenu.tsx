@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
 interface SessionUser {
@@ -13,15 +12,12 @@ interface SessionUser {
 }
 
 export function UserMenu() {
-  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<SessionUser | null>(null);
 
   const loadSession = useCallback(async () => {
     setLoading(true);
-    setError(null);
     const { data } = await supabase.auth.getSession();
     const session = data.session;
     if (!session) {
@@ -55,7 +51,6 @@ export function UserMenu() {
   }, []);
 
   const handleSignout = useCallback(async () => {
-    setError(null);
     await supabase.auth.signOut();
     await loadSession();
   }, [loadSession]);
@@ -116,5 +111,4 @@ export function UserMenu() {
     </div>
   );
 }
-
 

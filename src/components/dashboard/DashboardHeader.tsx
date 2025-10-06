@@ -56,14 +56,8 @@ export function DashboardHeader({
             selectedOwner={owner}
             selectedName={name}
             onChange={onRepositoryChange}
+            onAddRepository={onOpenAddRepository}
           />
-          <button
-            type="button"
-            onClick={onOpenAddRepository}
-            className="border border-[var(--hud-border)] bg-[var(--hud-bg-elevated)] px-3 py-2 font-mono text-xs uppercase tracking-wider text-[var(--hud-text)] transition-all duration-200 hover:border-[var(--hud-accent)]/60 hover:text-[var(--hud-text-bright)]"
-          >
-            Add Repo
-          </button>
           <button
             type="button"
             onClick={onSync}
@@ -74,17 +68,10 @@ export function DashboardHeader({
           </button>
           <button
             type="button"
-            onClick={onOpenReport}
-            className="border border-[var(--hud-warning)] bg-[var(--hud-bg-elevated)] px-4 py-2 font-mono text-xs uppercase tracking-wider text-[var(--hud-warning)] transition-all duration-200 hover:bg-[var(--hud-warning)] hover:text-[var(--hud-bg)]"
-          >
-            Send Report
-          </button>
-          <button
-            type="button"
             onClick={onNavigateToFeedback}
             className="border border-[var(--hud-accent)] bg-[var(--hud-bg-elevated)] px-4 py-2 font-mono text-xs uppercase tracking-wider text-[var(--hud-accent)] transition-all duration-200 hover:bg-[var(--hud-accent)] hover:text-[var(--hud-bg)]"
           >
-            Feedback
+            Survey
           </button>
           <button
             type="button"
@@ -92,6 +79,13 @@ export function DashboardHeader({
             className="border border-[var(--hud-accent)] bg-[var(--hud-bg-elevated)] px-4 py-2 font-mono text-xs uppercase tracking-wider text-[var(--hud-accent)] transition-all duration-200 hover:bg-[var(--hud-accent)] hover:text-[var(--hud-bg)]"
           >
             Integrations
+          </button>
+          <button
+            type="button"
+            onClick={onOpenReport}
+            className="border border-[var(--hud-warning)] bg-[var(--hud-bg-elevated)] px-4 py-2 font-mono text-xs uppercase tracking-wider text-[var(--hud-warning)] transition-all duration-200 hover:bg-[var(--hud-warning)] hover:text-[var(--hud-bg)]"
+          >
+            Send Report
           </button>
           <div className="hidden h-8 w-px bg-[var(--hud-border)] sm:block" />
           <UserMenu />

@@ -9,8 +9,8 @@ import {
   Tooltip,
   ResponsiveContainer,
   Legend,
-  ReferenceLine,
 } from "recharts";
+import type { TooltipProps } from "recharts";
 
 interface ComparisonData {
   name: string;
@@ -42,21 +42,28 @@ export function ComparisonBarChart({
     );
   }
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (!active || !payload || !payload.length) return null;
+  const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>) => {
+    if (!active || !payload || payload.length === 0) return null;
 
     return (
       <div className="rounded-lg border border-slate-700 bg-slate-900 p-3 shadow-lg">
         <p className="mb-2 text-sm font-medium text-white">{label}</p>
         <div className="space-y-1 text-xs">
-          {payload.map((entry: any, index: number) => (
-            <p key={index} className="text-slate-300">
-              <span style={{ color: entry.color }}>●</span> {entry.name}:{" "}
-              <span className="font-semibold text-white">
-                {entry.value.toFixed(1)}{valueUnit}
-              </span>
-            </p>
-          ))}
+          {payload.map((entry, index) => {
+            const color = entry.color ?? "#8b5cf6";
+            const name = entry.name ?? "Value";
+            const rawValue = entry.value;
+            const displayValue = typeof rawValue === "number" ? rawValue.toFixed(1) : String(rawValue ?? "—");
+            return (
+              <p key={index} className="text-slate-300">
+                <span style={{ color }}>●</span> {name}:{" "}
+                <span className="font-semibold text-white">
+                  {displayValue}
+                  {valueUnit}
+                </span>
+              </p>
+            );
+          })}
         </div>
       </div>
     );

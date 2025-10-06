@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
 }
 
 // GET endpoint to check sync status
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // Get summary of synced repositories
     const { data: repos, error } = await supabase
@@ -153,16 +153,16 @@ export async function GET(request: NextRequest) {
     }
 
     // Count PRs per repo
-    const counts = prCounts?.reduce((acc: any, pr) => {
+    const counts: Record<string, number> = {};
+    for (const pr of prCounts ?? []) {
       const key = `${pr.repository_owner}/${pr.repository_name}`;
-      acc[key] = (acc[key] || 0) + 1;
-      return acc;
-    }, {});
+      counts[key] = (counts[key] ?? 0) + 1;
+    }
 
     // Combine data
-    const reposWithCounts = repos?.map(repo => ({
+    const reposWithCounts = (repos ?? []).map((repo) => ({
       ...repo,
-      pr_count: counts[`${repo.owner}/${repo.name}`] || 0,
+      pr_count: counts[`${repo.owner}/${repo.name}`] ?? 0,
     }));
 
     return NextResponse.json({

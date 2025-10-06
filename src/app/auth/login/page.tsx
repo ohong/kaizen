@@ -37,8 +37,12 @@ export default function LoginPage() {
       if (signInError) {
         setError(signInError.message);
       }
-    } catch (e: any) {
-      setError(e?.message ?? "Failed to start Google sign-in");
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        setError(error.message);
+      } else {
+        setError("Failed to start Google sign-in");
+      }
     } finally {
       setLoading(false);
     }
@@ -110,5 +114,4 @@ export default function LoginPage() {
     </div>
   );
 }
-
 

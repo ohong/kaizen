@@ -9,6 +9,7 @@ interface RepositorySelectorProps {
   selectedOwner: string;
   selectedName: string;
   onChange: (owner: string, name: string) => void;
+  onAddRepository: () => void;
 }
 
 export function RepositorySelector({
@@ -16,6 +17,7 @@ export function RepositorySelector({
   selectedOwner,
   selectedName,
   onChange,
+  onAddRepository,
 }: RepositorySelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -36,10 +38,6 @@ export function RepositorySelector({
     window.addEventListener("keydown", handleEscape);
     return () => window.removeEventListener("keydown", handleEscape);
   }, [isOpen]);
-
-  if (repositories.length === 0) {
-    return null;
-  }
 
   return (
     <div className="relative">
@@ -64,6 +62,31 @@ export function RepositorySelector({
       {isOpen && (
         <div className="absolute right-0 z-20 mt-2 w-64 rounded-lg border border-[var(--hud-border)] bg-[var(--hud-bg)] shadow-lg">
           <ul className="max-h-64 overflow-y-auto py-1" role="listbox">
+            <li>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsOpen(false);
+                  onAddRepository();
+                }}
+                className="flex w-full items-center justify-between gap-2 px-4 py-2 text-left text-xs font-semibold uppercase tracking-wider text-[var(--hud-accent)] transition-colors hover:bg-[var(--hud-accent)]/10"
+                role="option"
+                aria-selected="false"
+              >
+                <span>Add Repo</span>
+                <svg
+                  className="h-3 w-3"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+              </button>
+            </li>
+            {repositories.length > 0 && (
+              <li className="mx-4 border-t border-[var(--hud-border)]" aria-hidden="true" />
+            )}
             {repositories.map((repo) => {
               const isSelected = repo.owner === selectedOwner && repo.name === selectedName;
               return (

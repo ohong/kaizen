@@ -298,7 +298,7 @@ function calculatePercentile(value: number, dataset: number[], lowerIsBetter: bo
   if (dataset.length === 0) return 50;
 
   const sorted = [...dataset].sort((a, b) => a - b);
-  let rank = sorted.filter(v => lowerIsBetter ? v > value : v < value).length;
+  const rank = sorted.filter(v => (lowerIsBetter ? v > value : v < value)).length;
   return Math.round((rank / sorted.length) * 100);
 }
 

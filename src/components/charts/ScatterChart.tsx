@@ -8,9 +8,9 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
   ZAxis,
 } from "recharts";
+import type { TooltipProps } from "recharts";
 
 interface ScatterPoint {
   x: number;
@@ -27,7 +27,6 @@ interface ScatterChartProps {
   title: string;
   xUnit?: string;
   yUnit?: string;
-  showTrendLine?: boolean;
 }
 
 export function ScatterChartViz({
@@ -37,7 +36,6 @@ export function ScatterChartViz({
   title,
   xUnit = "",
   yUnit = "",
-  showTrendLine = false,
 }: ScatterChartProps) {
   if (!data || data.length === 0) {
     return (
@@ -47,20 +45,14 @@ export function ScatterChartViz({
     );
   }
 
-  const formatTooltip = (value: number, name: string) => {
-    if (name === "x") {
-      return [`${value}${xUnit}`, xLabel];
-    }
-    if (name === "y") {
-      return [`${value}${yUnit}`, yLabel];
-    }
-    return [value, name];
-  };
+  const CustomTooltip = ({ active, payload }: TooltipProps<number, string>) => {
+    if (!active || !payload || payload.length === 0) return null;
 
-  const CustomTooltip = ({ active, payload }: any) => {
-    if (!active || !payload || !payload.length) return null;
-
-    const point = payload[0].payload;
+    const firstItem = payload[0];
+    if (!firstItem || typeof firstItem.payload !== "object" || firstItem.payload === null) {
+      return null;
+    }
+    const point = firstItem.payload as ScatterPoint;
 
     return (
       <div className="rounded-lg border border-slate-700 bg-slate-900 p-3 shadow-lg">

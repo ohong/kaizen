@@ -16,9 +16,9 @@ export interface Database {
           closed_at: string | null;
           html_url: string;
           draft: boolean;
-          labels: any[] | null;
-          requested_reviewers: any[] | null;
-          requested_teams: any[] | null;
+          labels: unknown[] | null;
+          requested_reviewers: unknown[] | null;
+          requested_teams: unknown[] | null;
           head_ref: string;
           base_ref: string;
           // Repository tracking
@@ -36,7 +36,7 @@ export interface Database {
           // Status fields
           is_merged: boolean;
           mergeable_state: string | null;
-          assignees: any[] | null;
+          assignees: unknown[] | null;
           // Time-based metrics
           time_to_first_review_hours: number | null;
           time_to_merge_hours: number | null;
@@ -57,9 +57,9 @@ export interface Database {
           closed_at?: string | null;
           html_url: string;
           draft?: boolean;
-          labels?: any[] | null;
-          requested_reviewers?: any[] | null;
-          requested_teams?: any[] | null;
+          labels?: unknown[] | null;
+          requested_reviewers?: unknown[] | null;
+          requested_teams?: unknown[] | null;
           head_ref: string;
           base_ref: string;
           // Repository tracking
@@ -77,7 +77,7 @@ export interface Database {
           // Status fields
           is_merged?: boolean;
           mergeable_state?: string | null;
-          assignees?: any[] | null;
+          assignees?: unknown[] | null;
           // Time-based metrics
           time_to_first_review_hours?: number | null;
           time_to_merge_hours?: number | null;
@@ -98,9 +98,9 @@ export interface Database {
           closed_at?: string | null;
           html_url?: string;
           draft?: boolean;
-          labels?: any[] | null;
-          requested_reviewers?: any[] | null;
-          requested_teams?: any[] | null;
+          labels?: unknown[] | null;
+          requested_reviewers?: unknown[] | null;
+          requested_teams?: unknown[] | null;
           head_ref?: string;
           base_ref?: string;
           // Repository tracking
@@ -118,7 +118,7 @@ export interface Database {
           // Status fields
           is_merged?: boolean;
           mergeable_state?: string | null;
-          assignees?: any[] | null;
+          assignees?: unknown[] | null;
           // Time-based metrics
           time_to_first_review_hours?: number | null;
           time_to_merge_hours?: number | null;
@@ -136,7 +136,7 @@ export interface Database {
           env: string | null;
           message: string | null;
           tags: string[] | null;
-          attributes: any | null;
+          attributes: Record<string, unknown> | null;
           inserted_at: string;
           repository_id: string; // uuid
         };
@@ -149,7 +149,7 @@ export interface Database {
           env?: string | null;
           message?: string | null;
           tags?: string[] | null;
-          attributes?: any | null;
+          attributes?: Record<string, unknown> | null;
           inserted_at?: string;
           repository_id: string;
         };
@@ -162,7 +162,7 @@ export interface Database {
           env?: string | null;
           message?: string | null;
           tags?: string[] | null;
-          attributes?: any | null;
+          attributes?: Record<string, unknown> | null;
           inserted_at?: string;
           repository_id?: string;
         };
@@ -174,7 +174,7 @@ export interface Database {
           type: 'github' | 'datadog' | 'linear' | 'sentry' | 'slack';
           name: string | null;
           status: 'active' | 'inactive' | 'error';
-          config: any; // jsonb
+          config: Record<string, unknown> | null; // jsonb
           datadog_api_key: string | null;
           datadog_app_key: string | null;
           created_at: string;
@@ -186,7 +186,7 @@ export interface Database {
           type: 'github' | 'datadog' | 'linear' | 'sentry' | 'slack';
           name?: string | null;
           status?: 'active' | 'inactive' | 'error';
-          config?: any;
+          config?: Record<string, unknown> | null;
           datadog_api_key?: string | null;
           datadog_app_key?: string | null;
           created_at?: string;
@@ -198,7 +198,7 @@ export interface Database {
           type?: 'github' | 'datadog' | 'linear' | 'sentry' | 'slack';
           name?: string | null;
           status?: 'active' | 'inactive' | 'error';
-          config?: any;
+          config?: Record<string, unknown> | null;
           datadog_api_key?: string | null;
           datadog_app_key?: string | null;
           created_at?: string;

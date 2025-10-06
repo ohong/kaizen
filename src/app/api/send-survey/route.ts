@@ -3,10 +3,23 @@ import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+interface SurveyData {
+  subject?: string;
+  title?: string;
+  message?: string;
+  ctaUrl?: string;
+  ctaLabel?: string;
+}
+
+interface SurveySendResult {
+  email: string;
+  messageId?: string;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { recipients, surveyData } = body;
+    const { recipients, surveyData } = body as { recipients: string[]; surveyData?: SurveyData };
 
     if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {
       return NextResponse.json(
@@ -43,14 +56,14 @@ export async function POST(request: NextRequest) {
 
     // Separate successful and failed sends
     const successful = results
-      .filter((result) => result.status === "fulfilled")
-      .map((result) => (result as PromiseFulfilledResult<any>).value);
+      .filter((result): result is PromiseFulfilledResult<SurveySendResult> => result.status === "fulfilled")
+      .map((result) => result.value);
 
     const failed = results
-      .filter((result) => result.status === "rejected")
+      .filter((result): result is PromiseRejectedResult => result.status === "rejected")
       .map((result, index) => ({
         email: recipients[index],
-        error: (result as PromiseRejectedResult).reason,
+        error: result.reason,
       }));
 
     return NextResponse.json({
@@ -73,11 +86,13 @@ export async function POST(request: NextRequest) {
   }
 }
 
-function generateSurveyEmailHTML(surveyData?: any): string {
+function generateSurveyEmailHTML(surveyData?: SurveyData): string {
   const title = surveyData?.title || "Developer Experience Survey";
   const message =
     surveyData?.message ||
     "We'd love to hear your feedback on your development experience with our team.";
+  const ctaUrl = surveyData?.ctaUrl || "https://forms.gle/example";
+  const ctaLabel = surveyData?.ctaLabel || "Take Survey (5 minutes)";
 
   return `
 <!DOCTYPE html>
@@ -206,7 +221,7 @@ function generateSurveyEmailHTML(surveyData?: any): string {
       </div>
       
       <p style="text-align: center;">
-        <a href="https://forms.gle/example" class="cta-button">Take Survey (5 minutes)</a>
+        <a href="${ctaUrl}" class="cta-button">${ctaLabel}</a>
       </p>
       
       <p style="font-size: 14px; color: #666; margin-top: 20px;">
