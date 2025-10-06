@@ -72,10 +72,17 @@ Kaizen integrates with:
 npm install
 cp .env.example .env.local
 # Add API keys for GitHub, Linear, Datadog, Resend, Supabase
+# Optional: set AGENT_MODEL_PROVIDER=nvidia if you want the agent to run on NVIDIA endpoints
 npm run dev
 ```
 
 Visit `http://localhost:3000` and trigger your first sync.
+
+### Adding additional repositories
+
+- Click **Add Repo** in the dashboard header (or use the quick guidance card) and enter `owner/repo`
+- Supply a GitHub personal access token with read access to that repository (fine-grained token → Repository contents + metadata is sufficient). The token is only used for the sync request.
+- The new repository appears in the selector once the initial sync finishes (usually under a minute)
 
 ---
 

@@ -6,10 +6,12 @@ import { CopilotSidebar } from "@copilotkit/react-ui";
 
 import {
   ActionQueueSection,
+  AddRepositoryModal,
   BenchmarkInsightsSection,
   ControlTowerHero,
   DashboardHeader,
   DeveloperInsightsSection,
+  GuidedActionsPanel,
   HealthOverviewSection,
   ReportModal,
   WorkflowSignalsSection,
@@ -91,18 +93,26 @@ export default function ManagerDashboard() {
     loading,
     error,
     refresh,
+    reloadRepositories,
   } = useRepositoryDashboard(selectedRepository);
 
   const [selectedDeveloper, setSelectedDeveloper] = useState<string | null>(null);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [showAddRepoModal, setShowAddRepoModal] = useState(false);
   const [selectedEmails, setSelectedEmails] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [sendingReport, setSendingReport] = useState(false);
   const [reportResult, setReportResult] = useState<{ success: boolean; message: string } | null>(
     null
   );
+  const [addingRepository, setAddingRepository] = useState(false);
+  const [addRepoError, setAddRepoError] = useState<string | null>(null);
   const [errorsSummary, setErrorsSummary] = useState<ErrorsSummary | null>(null);
   const [errorsSummaryLoading, setErrorsSummaryLoading] = useState(false);
+
+  const handleSync = useCallback(() => {
+    void refresh();
+  }, [refresh]);
 
   const repoMetrics = useMemo(() => {
     return repositoryMetrics.find(
@@ -355,13 +365,63 @@ export default function ManagerDashboard() {
     [router]
   );
 
+  const handleAddRepository = useCallback(
+    async ({ owner, name, description, token }: { owner: string; name: string; description?: string; token: string }) => {
+      if (!owner || !name) {
+        setAddRepoError("Enter both owner and repository name.");
+        return;
+      }
+      if (!token) {
+        setAddRepoError("Provide a GitHub personal access token with repo read access.");
+        return;
+      }
+      setAddingRepository(true);
+      setAddRepoError(null);
+      try {
+        const response = await fetch("/api/repositories/add", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ owner, name, description, token }),
+        });
+        const data = await response.json();
+        if (!response.ok || !data?.success) {
+          setAddRepoError(data?.error || "Unable to add repository.");
+          return;
+        }
+        await reloadRepositories();
+        setShowAddRepoModal(false);
+        setSelectedDeveloper(null);
+        handleRepositoryChange(owner, name);
+      } catch (err) {
+        console.error("Add repository error", err);
+        setAddRepoError("Failed to add repository. Check the repo name and token permissions.");
+      } finally {
+        setAddingRepository(false);
+      }
+    },
+    [handleRepositoryChange, reloadRepositories]
+  );
+
+  const handleOpenAddRepoModal = useCallback(() => {
+    setAddRepoError(null);
+    setShowAddRepoModal(true);
+  }, []);
+
+  const handleNavigateToFeedback = useCallback(() => {
+    router.push("/feedback");
+  }, [router]);
+
+  const handleNavigateToIntegrations = useCallback(() => {
+    router.push("/integrations");
+  }, [router]);
+
   return (
     <CopilotSidebar
       clickOutsideToClose={false}
       defaultOpen={true}
       labels={{
-        title: "Popup Assistant",
-        initial: "Hi",
+        title: "Kaizen Copilot",
+        initial: "I can benchmark repos, compare developer health, and outline improvement plays. Ask for suggestions or type / to see quick prompts."
       }}
     >
       <div className="relative min-h-screen bg-[var(--hud-bg)] text-[var(--hud-text)]">
@@ -375,12 +435,11 @@ export default function ManagerDashboard() {
           name={selectedRepository.name}
           repositories={repositories}
           loading={loading}
-          onSync={() => {
-            void refresh();
-          }}
+          onSync={handleSync}
+          onOpenAddRepository={handleOpenAddRepoModal}
           onOpenReport={handleOpenReportModal}
-          onNavigateToFeedback={() => router.push("/feedback")}
-          onNavigateToIntegrations={() => router.push("/integrations")}
+          onNavigateToFeedback={handleNavigateToFeedback}
+          onNavigateToIntegrations={handleNavigateToIntegrations}
           onRepositoryChange={handleRepositoryChange}
         />
 
@@ -392,6 +451,12 @@ export default function ManagerDashboard() {
               {error}
             </div>
           )}
+
+          <GuidedActionsPanel
+            onAddRepository={handleOpenAddRepoModal}
+            onSync={handleSync}
+            onOpenReport={handleOpenReportModal}
+          />
 
           {loading && prs.length === 0 ? (
             <div className="hud-panel hud-corner p-12 text-center text-sm text-[var(--hud-text-dim)]">
@@ -449,6 +514,17 @@ export default function ManagerDashboard() {
           latestSync={latestSync}
           errorsSummary={errorsSummary}
           errorsLoading={errorsSummaryLoading}
+        />
+
+        <AddRepositoryModal
+          open={showAddRepoModal}
+          submitting={addingRepository}
+          error={addRepoError}
+          onSubmit={handleAddRepository}
+          onClose={() => {
+            setShowAddRepoModal(false);
+            setAddRepoError(null);
+          }}
         />
       </div>
     </CopilotSidebar>

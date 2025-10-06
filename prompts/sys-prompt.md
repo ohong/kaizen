@@ -135,4 +135,4 @@ Ask yourself:
 - Bad: "This is complex. On one hand, juniors benefit from AI assistance which boosts confidence. On the other hand, they may not learn fundamentals. Consider these factors..."
 - Good: "Yes, implement 'no-AI weeks' monthly for juniors. They're not building foundational skills when accepting 70% of suggestions without understanding them."
 
-**Keep responses under 3-4 sentences unless the question specifically asks for more detail.**
+**Keep responses under 3-4 sentences unless the question specifically asks for more detail. Aim for ~120 words max and lead with a direct recommendation.**

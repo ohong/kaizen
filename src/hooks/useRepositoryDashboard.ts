@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { supabase } from "@/lib/supabase";
 import { getAvailableRepositories, type RepositoryOption } from "@/lib/repository-utils";
@@ -23,6 +23,7 @@ interface UseRepositoryDashboardResult {
   loading: boolean;
   error: string | null;
   refresh: () => Promise<void>;
+  reloadRepositories: () => Promise<void>;
 }
 
 export function useRepositoryDashboard(
@@ -34,6 +35,14 @@ export function useRepositoryDashboard(
   const [repositories, setRepositories] = useState<RepositoryOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -72,23 +81,30 @@ export function useRepositoryDashboard(
     }
   }, [selectedRepository.owner, selectedRepository.name]);
 
+  const reloadRepositories = useCallback(async () => {
+    try {
+      const items = await getAvailableRepositories();
+      if (mountedRef.current) {
+        setRepositories(items);
+      }
+    } catch (err) {
+      console.error('Failed to load repositories', err);
+      if (mountedRef.current) {
+        setRepositories([]);
+      }
+      throw err;
+    }
+  }, []);
+
   useEffect(() => {
     refresh();
   }, [refresh]);
 
   useEffect(() => {
-    let isMounted = true;
-    getAvailableRepositories()
-      .then((items) => {
-        if (isMounted) setRepositories(items);
-      })
-      .catch(() => {
-        if (isMounted) setRepositories([]);
-      });
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+    reloadRepositories().catch(() => {
+      /* errors logged in reloadRepositories */
+    });
+  }, [reloadRepositories]);
 
   return {
     prs,
@@ -98,5 +114,6 @@ export function useRepositoryDashboard(
     loading,
     error,
     refresh,
+    reloadRepositories,
   };
 }
