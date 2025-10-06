@@ -13,6 +13,7 @@ interface DashboardHeaderProps {
   repositories: RepositoryOption[];
   loading: boolean;
   onSync: () => void;
+  onOpenAddRepository: () => void;
   onOpenReport: () => void;
   onNavigateToFeedback: () => void;
   onNavigateToIntegrations: () => void;
@@ -25,6 +26,7 @@ export function DashboardHeader({
   repositories,
   loading,
   onSync,
+  onOpenAddRepository,
   onOpenReport,
   onNavigateToFeedback,
   onNavigateToIntegrations,
@@ -55,6 +57,13 @@ export function DashboardHeader({
             selectedName={name}
             onChange={onRepositoryChange}
           />
+          <button
+            type="button"
+            onClick={onOpenAddRepository}
+            className="border border-[var(--hud-border)] bg-[var(--hud-bg-elevated)] px-3 py-2 font-mono text-xs uppercase tracking-wider text-[var(--hud-text)] transition-all duration-200 hover:border-[var(--hud-accent)]/60 hover:text-[var(--hud-text-bright)]"
+          >
+            Add Repo
+          </button>
           <button
             type="button"
             onClick={onSync}

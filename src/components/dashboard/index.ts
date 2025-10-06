@@ -7,3 +7,5 @@ export { WorkflowSignalsSection } from "./WorkflowSignalsSection";
 export { BenchmarkInsightsSection } from "./BenchmarkInsightsSection";
 export { ReportModal } from "./ReportModal";
 export { RepositorySelector } from "./RepositorySelector";
+export { AddRepositoryModal } from "./AddRepositoryModal";
+export { GuidedActionsPanel } from "./GuidedActionsPanel";

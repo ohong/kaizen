@@ -5,7 +5,6 @@ It defines the workflow graph, state, tools, nodes and edges.
 
 from typing import Any, List
 from typing_extensions import Literal
-from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, BaseMessage
 from langchain_core.runnables import RunnableConfig
 from langchain.tools import tool
@@ -14,6 +13,7 @@ from langgraph.types import Command
 from langgraph.graph import MessagesState
 from langgraph.prebuilt import ToolNode
 import os
+from langchain_openai import ChatOpenAI
 
 # Load system prompt from file
 SYSTEM_PROMPT_PATH = os.path.join(os.path.dirname(__file__), "..", "prompts", "sys-prompt.md")
@@ -49,6 +49,42 @@ backend_tools = [
 # Extract tool names from backend_tools for comparison
 backend_tool_names = [tool.name for tool in backend_tools]
 
+DEFAULT_MODEL_PROVIDER = os.getenv("AGENT_MODEL_PROVIDER", "nvidia").lower()
+DEFAULT_MODEL_NAME = os.getenv("AGENT_MODEL_NAME")
+DEFAULT_MODEL_TEMPERATURE = float(os.getenv("AGENT_MODEL_TEMPERATURE", "0.2"))
+
+
+def create_chat_model() -> Any:
+    """Create the chat model based on environment configuration."""
+    provider = DEFAULT_MODEL_PROVIDER
+    model_name = DEFAULT_MODEL_NAME
+
+    if provider == "nvidia":
+        try:
+            from langchain_nvidia_ai_endpoints import ChatNVIDIA
+        except ImportError as exc:
+            raise ImportError("Install langchain-nvidia-ai-endpoints to use NVIDIA models") from exc
+
+        api_key = os.getenv("NVIDIA_API_KEY")
+        if not api_key:
+            raise ValueError("NVIDIA_API_KEY is required when AGENT_MODEL_PROVIDER is set to 'nvidia'.")
+
+        return ChatNVIDIA(
+            model=model_name or "meta/llama-3.1-70b-instruct",
+            temperature=DEFAULT_MODEL_TEMPERATURE,
+            api_key=api_key,
+        )
+
+    if provider == "openai":
+        return ChatOpenAI(
+            model=model_name or "gpt-4o-mini",
+            temperature=DEFAULT_MODEL_TEMPERATURE,
+        )
+
+    raise ValueError(
+        "Unsupported AGENT_MODEL_PROVIDER. Set to 'nvidia' or 'openai'."
+    )
+
 
 async def chat_node(state: AgentState, config: RunnableConfig) -> Command[Literal["tool_node", "__end__"]]:
     """
@@ -63,21 +99,23 @@ async def chat_node(state: AgentState, config: RunnableConfig) -> Command[Litera
     """
 
     # 1. Define the model
-    model = ChatOpenAI(model="gpt-4o")
+    model = create_chat_model()
 
     # 2. Bind the tools to the model
-    model_with_tools = model.bind_tools(
-        [
-            *state.get("tools", []), # bind tools defined by ag-ui
-            *backend_tools,
-            # your_tool_here
-        ],
+    defined_tools = [
+        *state.get("tools", []),  # bind tools defined by ag-ui
+        *backend_tools,
+        # your_tool_here
+    ]
 
-        # 2.1 Disable parallel tool calls to avoid race conditions,
-        #     enable this for faster performance if you want to manage
-        #     the complexity of running tool calls in parallel.
-        parallel_tool_calls=False,
-    )
+    if defined_tools:
+        model_ready = model.bind_tools(
+            defined_tools,
+            # Disable parallel tool calls to avoid race conditions.
+            parallel_tool_calls=False,
+        )
+    else:
+        model_ready = model
 
     # 3. Define the system message by which the chat model will be run
     system_message = SystemMessage(
@@ -85,7 +123,7 @@ async def chat_node(state: AgentState, config: RunnableConfig) -> Command[Litera
     )
 
     # 4. Run the model to generate a response
-    response = await model_with_tools.ainvoke([
+    response = await model_ready.ainvoke([
         system_message,
         *state["messages"],
     ], config)
