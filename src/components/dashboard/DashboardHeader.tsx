@@ -16,7 +16,7 @@ interface DashboardHeaderProps {
   onSync: () => void;
   onOpenAddRepository: () => void;
   onOpenReport: () => void;
-  onNavigateToFeedback: () => void;
+  onNavigateToSurvey: () => void;
   onNavigateToIntegrations: () => void;
   onRepositoryChange: (owner: string, name: string) => void;
 }
@@ -29,7 +29,7 @@ export function DashboardHeader({
   onSync,
   onOpenAddRepository,
   onOpenReport,
-  onNavigateToFeedback,
+  onNavigateToSurvey,
   onNavigateToIntegrations,
   onRepositoryChange,
 }: DashboardHeaderProps) {
@@ -71,7 +71,7 @@ export function DashboardHeader({
           </button>
           <button
             type="button"
-            onClick={onNavigateToFeedback}
+            onClick={onNavigateToSurvey}
             className="border border-[var(--hud-accent)] bg-[var(--hud-bg-elevated)] px-4 py-2 font-mono text-xs uppercase tracking-wider text-[var(--hud-accent)] transition-all duration-200 hover:bg-[var(--hud-accent)] hover:text-[var(--hud-bg)]"
           >
             Survey

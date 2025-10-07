@@ -417,8 +417,8 @@ export default function ManagerDashboard() {
     setShowAddRepoModal(true);
   }, []);
 
-  const handleNavigateToFeedback = useCallback(() => {
-    router.push("/feedback");
+  const handleNavigateToSurvey = useCallback(() => {
+    router.push("/survey");
   }, [router]);
 
   const handleNavigateToIntegrations = useCallback(() => {
@@ -448,7 +448,7 @@ export default function ManagerDashboard() {
           onSync={handleSync}
           onOpenAddRepository={handleOpenAddRepoModal}
           onOpenReport={handleOpenReportModal}
-          onNavigateToFeedback={handleNavigateToFeedback}
+          onNavigateToSurvey={handleNavigateToSurvey}
           onNavigateToIntegrations={handleNavigateToIntegrations}
           onRepositoryChange={handleRepositoryChange}
         />

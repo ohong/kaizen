@@ -5,8 +5,8 @@ import "./globals.css";
 import "@copilotkit/react-ui/styles.css";
 
 export const metadata: Metadata = {
-  title: "Kaizen Dashboard",
-  description: "One place to measure, analyze, and improve your engineering productivity.",
+  title: "Kaizen Console",
+  description: "One place to measure, analyze, and improve your engineering team's productivity.",
 };
 
 export default function RootLayout({

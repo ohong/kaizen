@@ -41,7 +41,7 @@ from: "Kaizen <noreply@yourdomain.com>", // Update this
 ## Usage
 
 ### Access the Page
-Navigate to `/feedback` or click the "Feedback" button in the dashboard header.
+Navigate to `/survey` or click the "Survey" button in the dashboard header.
 
 ### Send a Survey
 1. Customize the survey content (optional)
@@ -102,7 +102,7 @@ The email includes:
 
 ## Testing
 1. Make sure your Resend API key is configured
-2. Navigate to `/feedback`
+2. Navigate to `/survey`
 3. Select the real email (javokhir@raisedash.com)
 4. Customize the content if desired
 5. Click "Send Survey"
