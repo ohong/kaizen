@@ -154,13 +154,14 @@ export async function GET() {
 
     // Count PRs per repo
     const counts: Record<string, number> = {};
-    for (const pr of prCounts ?? []) {
+    for (const pr of (prCounts ?? []) as { repository_owner: string; repository_name: string }[]) {
       const key = `${pr.repository_owner}/${pr.repository_name}`;
       counts[key] = (counts[key] ?? 0) + 1;
     }
 
     // Combine data
-    const reposWithCounts = (repos ?? []).map((repo) => ({
+    const reposArray = (repos ?? []) as { owner: string; name: string; [key: string]: unknown }[];
+    const reposWithCounts = reposArray.map((repo) => ({
       ...repo,
       pr_count: counts[`${repo.owner}/${repo.name}`] ?? 0,
     }));

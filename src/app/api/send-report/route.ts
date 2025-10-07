@@ -53,6 +53,11 @@ export interface ReportPayload {
   distributions?: unknown;
 }
 
+interface NvidiaMessagePart {
+  text?: string;
+  [key: string]: unknown;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -74,8 +79,8 @@ export async function POST(request: NextRequest) {
 
     const subject = buildSubject(payload);
 
-    // Best-effort LLM summary using Anthropic
-    const llmSummary = await summarizeWithAnthropic(payload);
+    // Best-effort LLM summary using NVIDIA
+    const llmSummary = await summarizeWithNvidia(payload);
     const html = generateReportEmailHTML(payload, llmSummary ?? undefined);
 
     const results = await Promise.allSettled(
@@ -225,7 +230,7 @@ function generateReportEmailHTML(payload: ReportPayload, llmSummary?: string): s
 
       ${summaryHtml ? `
       <div class="section">
-        <div class="muted">Executive Summary (Anthropic)</div>
+        <div class="muted">LLM Summary</div>
         <div class="card" style="margin-top:8px">
           ${summaryHtml}
         </div>
@@ -254,10 +259,10 @@ function formatSummaryHtml(summary: string): string {
     .replace(/\n/g, '<br/>');
 }
 
-async function summarizeWithAnthropic(payload: ReportPayload): Promise<string | null> {
+async function summarizeWithNvidia(payload: ReportPayload): Promise<string | null> {
   try {
-    if (!process.env.ANTHROPIC_API_KEY) {
-      console.warn("ANTHROPIC_API_KEY not set; skipping LLM summary");
+    if (!process.env.NVIDIA_API_KEY) {
+      console.warn("NVIDIA_API_KEY not set; skipping LLM summary");
       return null;
     }
 
@@ -273,7 +278,7 @@ async function summarizeWithAnthropic(payload: ReportPayload): Promise<string | 
       systemPrompt = "You are a Kaizen engineering advisor. Summarize concisely with actionable next steps.";
     }
 
-    const model = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5-20250929";
+    const model = process.env.NVIDIA_SUMMARY_MODEL || "meta/llama-3.1-70b-instruct";
 
     // Trim payload down a bit for the model
     const condensed: ReportPayload = {
@@ -301,19 +306,18 @@ async function summarizeWithAnthropic(payload: ReportPayload): Promise<string | 
 
     const userContent = `${instructions}\n\nDATA (JSON):\n${JSON.stringify(condensed)}`;
     
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
+    const res = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        "content-type": "application/json",
-        "x-api-key": process.env.ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.NVIDIA_API_KEY}`,
       },
       body: JSON.stringify({
         model,
         max_tokens: 600,
         temperature: 0.3,
-        system: systemPrompt,
         messages: [
+          { role: "system", content: systemPrompt },
           { role: "user", content: userContent },
         ],
       }),
@@ -321,29 +325,25 @@ async function summarizeWithAnthropic(payload: ReportPayload): Promise<string | 
 
     if (!res.ok) {
       const errText = await res.text();
-      console.error("Anthropic API error:", res.status, errText);
+      console.error("NVIDIA API error:", res.status, errText);
       return null;
     }
     const json = await res.json();
-    const content = Array.isArray(json?.content) ? (json.content as AnthropicMessageContent[]) : [];
-    const firstText = content.find((c) => c.type === "text")?.text;
-    if (typeof firstText === "string" && firstText.trim().length > 0) {
-      return firstText.trim();
+    const completion = json?.choices?.[0]?.message?.content;
+    if (typeof completion === "string" && completion.trim().length > 0) {
+      return completion.trim();
     }
-    // Fallback: try to join any text parts
-    const joined = content
-      .map((c) => (typeof c.text === "string" ? c.text : null))
-      .filter((value): value is string => Boolean(value))
-      .join("\n");
-    return joined ? joined.trim() : null;
-  } catch (error) {
-    console.error("Failed to generate LLM summary:", error);
+    const content = json?.choices?.[0]?.message?.content as unknown;
+    if (Array.isArray(content)) {
+      const joined = content
+        .map((c: NvidiaMessagePart) => (typeof c?.text === "string" ? c.text : ""))
+        .filter(Boolean)
+        .join("\n");
+      return joined ? joined.trim() : null;
+    }
+    return null;
+  } catch (e) {
+    console.error("Failed to generate LLM summary:", e);
     return null;
   }
-}
-
-interface AnthropicMessageContent {
-  type?: string;
-  text?: string;
-  [key: string]: unknown;
 }

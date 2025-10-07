@@ -19,6 +19,11 @@ export interface DeveloperEfficiency {
   qualityScore: EfficiencyScore;
   collaborationScore: EfficiencyScore;
   consistencyScore: EfficiencyScore;
+  throughputScore: EfficiencyScore;
+  mergeSpeedScore: EfficiencyScore;
+  reviewResponsivenessScore: EfficiencyScore;
+  prSizeDisciplineScore: EfficiencyScore;
+  mergeSuccessScore: EfficiencyScore;
   overallScore: number;
 }
 
@@ -205,9 +210,181 @@ export function calculateConsistencyScore(
     percentile = 15;
   }
 
+  score = Math.max(0, Math.min(100, score));
+
   return { score, percentile, interpretation, recommendation };
 }
 
+function calculateThroughputScore(metrics: DeveloperMetrics): EfficiencyScore {
+  const activeWeeks = metrics.activity_span_days ? Math.max(metrics.activity_span_days / 7, 1) : 1;
+  const prsPerWeek = metrics.total_prs / activeWeeks;
+  const score = Math.max(0, Math.min(100, (prsPerWeek / 3) * 100));
+
+  let interpretation = '';
+  let recommendation = '';
+  if (score >= 85) {
+    interpretation = 'High shipping cadence - work is flowing quickly';
+    recommendation = 'Protect focus time and keep scope small to sustain the pace';
+  } else if (score >= 60) {
+    interpretation = 'Steady throughput with room to accelerate';
+    recommendation = 'Batch PRs less and aim for daily merges to lift momentum';
+  } else if (score >= 40) {
+    interpretation = 'Throughput is on the slower side';
+    recommendation = 'Break features into smaller milestones and avoid blocked branches';
+  } else {
+    interpretation = 'Low throughput - shipping cadence is constrained';
+    recommendation = 'Review workload and unblock the pipeline before starting more work';
+  }
+
+  return {
+    score: Math.round(score),
+    percentile: estimatePercentileFromScore(score),
+    interpretation,
+    recommendation,
+  };
+}
+
+function calculateMergeSpeedScore(metrics: DeveloperMetrics): EfficiencyScore {
+  const mergeHours = metrics.avg_merge_hours;
+  if (mergeHours === null || Number.isNaN(mergeHours)) {
+    return {
+      score: 50,
+      percentile: 50,
+      interpretation: 'Merge speed unknown - no recent merges recorded',
+      recommendation: 'Ship a few PRs end-to-end to capture baseline cycle time',
+    };
+  }
+
+  const score = Math.max(0, Math.min(100, 100 - (mergeHours / 48) * 100));
+
+  let interpretation = '';
+  let recommendation = '';
+  if (score >= 80) {
+    interpretation = 'PRs merge fast - reviewers are responsive and scope stays tight';
+    recommendation = 'Keep pairing reviewers early to sustain the velocity';
+  } else if (score >= 60) {
+    interpretation = 'Merge time is fine but could be leaner';
+    recommendation = 'Schedule explicit review slots and stagger deploy windows';
+  } else if (score >= 40) {
+    interpretation = 'Merges are slow, creating delivery drag';
+    recommendation = 'Shorten PRs and line up backup reviewers for faster hand-offs';
+  } else {
+    interpretation = 'Merge delays are severe - work is idling for days';
+    recommendation = 'Run a review-swimlane rotation and make WIP limits visible';
+  }
+
+  return {
+    score: Math.round(score),
+    percentile: estimatePercentileFromScore(score),
+    interpretation,
+    recommendation,
+  };
+}
+
+function calculateReviewResponsivenessScore(metrics: DeveloperMetrics): EfficiencyScore {
+  const firstReviewHours = metrics.avg_time_to_first_review_hours;
+  if (firstReviewHours === null || Number.isNaN(firstReviewHours)) {
+    return {
+      score: 50,
+      percentile: 50,
+      interpretation: 'Time to first review is unclear - no reviewer data available',
+      recommendation: 'Coordinate at least one review per PR to establish a baseline',
+    };
+  }
+
+  const score = Math.max(0, Math.min(100, 100 - (firstReviewHours / 24) * 100));
+
+  let interpretation = '';
+  let recommendation = '';
+  if (score >= 80) {
+    interpretation = 'Feedback lands within hours - excellent review responsiveness';
+    recommendation = 'Keep reviewer rotations lightweight to maintain the SLA';
+  } else if (score >= 60) {
+    interpretation = 'Reviews arrive in a reasonable window';
+    recommendation = 'Block daily review slots to shave a few hours off the wait time';
+  } else if (score >= 40) {
+    interpretation = 'Reviews take over a day, slowing developer flow';
+    recommendation = 'Make review ownership explicit and surface stale PR alerts';
+  } else {
+    interpretation = 'PRs wait multiple days for feedback';
+    recommendation = 'Introduce batched review breaks and escalate blockers quickly';
+  }
+
+  return {
+    score: Math.round(score),
+    percentile: estimatePercentileFromScore(score),
+    interpretation,
+    recommendation,
+  };
+}
+
+function calculatePrSizeDisciplineScore(metrics: DeveloperMetrics): EfficiencyScore {
+  const total = metrics.total_prs || 0;
+  const smallRatio = total > 0 ? metrics.small_prs / total : 0;
+  const score = Math.max(0, Math.min(100, smallRatio * 100));
+
+  let interpretation = '';
+  let recommendation = '';
+  if (score >= 80) {
+    interpretation = 'Most PRs are bite-sized and easy to review';
+    recommendation = 'Keep championing small changes and merge frequently';
+  } else if (score >= 60) {
+    interpretation = 'PR size is generally healthy with a few large drops';
+    recommendation = 'Split risky work behind feature flags to stay in the sweet spot';
+  } else if (score >= 40) {
+    interpretation = 'Many PRs are medium-large, raising review load';
+    recommendation = 'Co-design increments before coding to prevent scope creep';
+  } else {
+    interpretation = 'Chunking needs attention - reviewers see monolithic PRs';
+    recommendation = 'Adopt working agreements on max PR size and enable draft reviews early';
+  }
+
+  return {
+    score: Math.round(score),
+    percentile: estimatePercentileFromScore(score),
+    interpretation,
+    recommendation,
+  };
+}
+
+function calculateMergeSuccessScore(metrics: DeveloperMetrics): EfficiencyScore {
+  const mergeRate = metrics.merge_rate_percent ?? 0;
+  const score = Math.max(0, Math.min(100, mergeRate));
+
+  let interpretation = '';
+  let recommendation = '';
+  if (score >= 90) {
+    interpretation = 'PRs almost always land - scoping and review are aligned';
+    recommendation = 'Share playbooks with peers to keep the success rate elite';
+  } else if (score >= 75) {
+    interpretation = 'Strong merge rate with occasional misses';
+    recommendation = 'Clarify acceptance criteria upfront to avoid rework';
+  } else if (score >= 55) {
+    interpretation = 'Merge success is uneven';
+    recommendation = 'Tighten pre-work (design docs, checklists) before opening PRs';
+  } else {
+    interpretation = 'Many PRs stall or close without merging';
+    recommendation = 'Diagnose failure drivers - scope churn, flaky tests, or review gaps';
+  }
+
+  return {
+    score: Math.round(score),
+    percentile: estimatePercentileFromScore(score),
+    interpretation,
+    recommendation,
+  };
+}
+
+function estimatePercentileFromScore(score: number): number {
+  if (score >= 90) return 95;
+  if (score >= 75) return 80;
+  if (score >= 60) return 65;
+  if (score >= 40) return 45;
+  if (score >= 20) return 25;
+  return 10;
+}
+
+// Team summary utilities
 export function computeTeamEfficiencySummary(
   developers: DeveloperEfficiency[]
 ): TeamEfficiencySummary | null {
@@ -228,7 +405,10 @@ export function computeTeamEfficiencySummary(
   };
 }
 
-function aggregateScores(metric: "velocity" | "quality" | "collaboration" | "consistency", scores: EfficiencyScore[]): EfficiencyScore {
+function aggregateScores(
+  metric: "velocity" | "quality" | "collaboration" | "consistency",
+  scores: EfficiencyScore[]
+): EfficiencyScore {
   const averageScore = scores.reduce((sum, score) => sum + score.score, 0) / scores.length;
   const averagePercentile = Math.round(
     scores.reduce((sum, score) => sum + score.percentile, 0) / scores.length
@@ -279,13 +459,23 @@ export function calculateDeveloperEfficiency(
   const qualityScore = calculateQualityScore(metrics, benchmarks);
   const collaborationScore = calculateCollaborationScore(metrics);
   const consistencyScore = calculateConsistencyScore(metrics);
+  const throughputScore = calculateThroughputScore(metrics);
+  const mergeSpeedScore = calculateMergeSpeedScore(metrics);
+  const reviewResponsivenessScore = calculateReviewResponsivenessScore(metrics);
+  const prSizeDisciplineScore = calculatePrSizeDisciplineScore(metrics);
+  const mergeSuccessScore = calculateMergeSuccessScore(metrics);
 
   // Weighted overall score
   const overallScore =
-    velocityScore.score * 0.30 +
-    qualityScore.score * 0.35 +
-    collaborationScore.score * 0.20 +
-    consistencyScore.score * 0.15;
+    velocityScore.score * 0.2 +
+    qualityScore.score * 0.2 +
+    collaborationScore.score * 0.14 +
+    consistencyScore.score * 0.1 +
+    throughputScore.score * 0.14 +
+    mergeSpeedScore.score * 0.08 +
+    reviewResponsivenessScore.score * 0.07 +
+    prSizeDisciplineScore.score * 0.04 +
+    mergeSuccessScore.score * 0.03;
 
   return {
     author: metrics.author,
@@ -295,6 +485,11 @@ export function calculateDeveloperEfficiency(
     qualityScore,
     collaborationScore,
     consistencyScore,
+    throughputScore,
+    mergeSpeedScore,
+    reviewResponsivenessScore,
+    prSizeDisciplineScore,
+    mergeSuccessScore,
     overallScore: Math.round(overallScore),
   };
 }

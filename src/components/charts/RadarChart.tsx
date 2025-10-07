@@ -62,7 +62,7 @@ export function RadarChartViz({
     <div className="flex h-full flex-col rounded-xl border border-slate-800 bg-slate-900/60 p-6">
       <h3 className="mb-4 text-center text-sm font-medium text-white">{title}</h3>
       <ResponsiveContainer width="100%" height="100%">
-        <RechartsRadar>
+        <RechartsRadar data={data}>
           <PolarGrid stroke="#334155" />
           <PolarAngleAxis
             dataKey="dimension"

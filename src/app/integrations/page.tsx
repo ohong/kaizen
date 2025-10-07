@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { getAvailableRepositories, parseRepositoryFromUrl, buildRepositoryUrl } from "@/lib/repository-utils";
 import type { Database } from "@/lib/types/database";
 import type { RepositoryOption } from "@/lib/repository-utils";
@@ -153,9 +154,10 @@ export default function IntegrationsPage() {
         datadog_app_key: formData.appKey
       };
 
-      const { data, error } = await supabase
+      const db = supabase as SupabaseClient<Database>;
+      const { data, error } = await db
         .from('integrations')
-        .insert(integrationData)
+        .insert(integrationData as never)
         .select()
         .single<Integration>();
 

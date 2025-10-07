@@ -93,7 +93,7 @@ export async function upsertRepositoryMetadata(metadata: RepositoryMetadata) {
         industry: metadata.industry ?? null,
         is_benchmark: metadata.isBenchmark ?? false,
         updated_at: now,
-      },
+      } as never,
       {
         onConflict: "owner,name",
       }
@@ -134,7 +134,7 @@ export async function syncRepository(opts: RepositorySyncOptions): Promise<Repos
       if (existing) {
         const { error } = await supabase
           .from("pull_requests")
-          .update(prData)
+          .update(prData as never)
           .eq("repository_owner", opts.owner)
           .eq("repository_name", opts.name)
           .eq("pr_number", pr.number);
@@ -146,7 +146,7 @@ export async function syncRepository(opts: RepositorySyncOptions): Promise<Repos
           updatedCount++;
         }
       } else {
-        const { error } = await supabase.from("pull_requests").insert(prData);
+        const { error } = await supabase.from("pull_requests").insert(prData as never);
 
         if (error) {
           console.error(`Error inserting PR #${pr.number}:`, error);

@@ -29,7 +29,7 @@ export async function getAvailableRepositories(): Promise<RepositoryOption[]> {
     const { data: repos, error: repoError } = await supabase
       .from('repositories')
       .select('*')
-      .order('owner', { ascending: true });
+      .order('owner', { ascending: true }) as { data: { owner: string; name: string; description: string | null; is_benchmark: boolean }[] | null; error: any };
 
     if (repoError) throw repoError;
 
@@ -37,12 +37,12 @@ export async function getAvailableRepositories(): Promise<RepositoryOption[]> {
     const { data: prCounts, error: countError } = await supabase
       .from('pull_requests')
       .select('repository_owner, repository_name')
-      .order('repository_owner');
+      .order('repository_owner') as { data: { repository_owner: string; repository_name: string }[] | null; error: any };
 
     if (countError) throw countError;
 
     // Count PRs and contributors per repo
-    const repoStats = (prCounts ?? []).reduce<Record<string, { prCount: number }>>((acc, pr) => {
+    const repoStats = (prCounts ?? [] as { repository_owner: string; repository_name: string }[]).reduce<Record<string, { prCount: number }>>((acc, pr) => {
       const key = `${pr.repository_owner}/${pr.repository_name}`;
       if (!acc[key]) {
         acc[key] = { prCount: 0 };
@@ -54,9 +54,9 @@ export async function getAvailableRepositories(): Promise<RepositoryOption[]> {
     // Get contributor counts
     const { data: devMetrics } = await supabase
       .from('developer_metrics')
-      .select('repository_owner, repository_name, author');
+      .select('repository_owner, repository_name, author') as { data: { repository_owner: string; repository_name: string; author: string }[] | null };
 
-    const contributorCounts = (devMetrics ?? []).reduce<Record<string, Set<string>>>((acc, dev) => {
+    const contributorCounts = (devMetrics ?? [] as { repository_owner: string; repository_name: string; author: string }[]).reduce<Record<string, Set<string>>>((acc, dev) => {
       const key = `${dev.repository_owner}/${dev.repository_name}`;
       if (!acc[key]) {
         acc[key] = new Set<string>();
@@ -68,7 +68,7 @@ export async function getAvailableRepositories(): Promise<RepositoryOption[]> {
     }, {});
 
     // Combine data
-    const options: RepositoryOption[] = (repos || []).map(repo => {
+    const options: RepositoryOption[] = (repos || [] as { owner: string; name: string; description: string | null; is_benchmark: boolean }[]).map(repo => {
       const key = `${repo.owner}/${repo.name}`;
       const stats = repoStats[key] ?? { prCount: 0 };
       const contributors = contributorCounts[key] ?? new Set<string>();

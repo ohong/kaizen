@@ -133,7 +133,7 @@ export default function FeedbackPageClient({ defaultSurveyBody }: FeedbackPageCl
       setSendResult({
         success: false,
         message: "Network error occurred while sending survey",
-        details: error,
+        details: { sent: 0, failed: [{ email: 'unknown', error: error instanceof Error ? error.message : String(error) }] },
       });
     } finally {
       setSending(false);
