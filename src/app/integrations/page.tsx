@@ -8,6 +8,8 @@ import { supabase } from "@/lib/supabase";
 import { getAvailableRepositories, parseRepositoryFromUrl, buildRepositoryUrl } from "@/lib/repository-utils";
 import type { Database } from "@/lib/types/database";
 import type { RepositoryOption } from "@/lib/repository-utils";
+import { Datadog } from "@/components/icons/Datadog";
+import { Linear } from "@/components/icons/Linear";
 
 type Integration = Database['public']['Tables']['integrations']['Row'];
 type IntegrationInsert = Database['public']['Tables']['integrations']['Insert'];
@@ -404,18 +406,27 @@ export default function IntegrationsPage() {
               className="p-4 border-2 border-dashed border-[var(--hud-border)] rounded-lg hover:border-[var(--hud-accent)]/60 hover:bg-[var(--hud-accent)]/5 transition-all duration-200"
             >
               <div className="text-center">
-                <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-[var(--hud-accent)]/10">
-                  <svg className="h-6 w-6 text-[var(--hud-accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
+                <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-white">
+                  <Datadog className="h-9 w-9" />
                 </div>
                 <h3 className="mt-2 text-sm font-medium text-[var(--hud-text-bright)]">Datadog</h3>
                 <p className="mt-1 text-sm text-[var(--hud-text-dim)]">Monitor errors and performance</p>
               </div>
             </button>
 
+            {/* Linear placeholder */}
+            <div className="p-4 border-2 border-dashed border-[var(--hud-border)]/50 rounded-lg bg-[var(--hud-bg)] opacity-60">
+              <div className="text-center">
+                <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-white/80">
+                  <Linear className="h-8 w-8" />
+                </div>
+                <h3 className="mt-2 text-sm font-medium text-[var(--hud-text-dim)]">Linear</h3>
+                <p className="mt-1 text-sm text-[var(--hud-text-dim)]">Coming soon</p>
+              </div>
+            </div>
+
             {/* Placeholder for future integrations */}
-            <div className="p-4 border-2 border-dashed border-[var(--hud-border)]/50 rounded-lg opacity-50">
+            <div className="p-4 border-2 border-dashed border-[var(--hud-border)]/40 rounded-lg opacity-40">
               <div className="text-center">
                 <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-[var(--hud-bg)]">
                   <svg className="h-6 w-6 text-[var(--hud-text-dim)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
