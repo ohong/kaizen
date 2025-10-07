@@ -18,6 +18,21 @@
   --foreground: var(--hud-text);
 }
 
+/* CopilotKit theme overrides */
+:root {
+  --copilot-kit-primary-color: var(--hud-accent);
+  --copilot-kit-contrast-color: var(--hud-bg);
+  --copilot-kit-background-color: var(--hud-bg);
+  --copilot-kit-input-background-color: var(--hud-bg-elevated);
+  --copilot-kit-secondary-color: var(--hud-bg-elevated);
+  --copilot-kit-secondary-contrast-color: var(--hud-text);
+  --copilot-kit-separator-color: var(--hud-border);
+  --copilot-kit-muted-color: var(--hud-text-dim);
+  --copilot-kit-shadow-sm: 0 0 10px rgba(0, 0, 0, 0.5);
+  --copilot-kit-shadow-md: 0 0 20px rgba(0, 0, 0, 0.35);
+  --copilot-kit-shadow-lg: 0 0 30px rgba(0, 0, 0, 0.5);
+}
+
 html,
 body {
   height: 100%;
@@ -89,4 +104,109 @@ body {
   );
   pointer-events: none;
   opacity: 0.3;
+}
+
+/* CopilotKit component styling */
+.copilotKitButton {
+  background-color: var(--hud-accent) !important;
+  border-color: var(--hud-accent) !important;
+  color: var(--hud-bg) !important;
+  box-shadow: 0 0 10px rgba(0, 255, 136, 0.35) !important;
+}
+
+.copilotKitButton:hover,
+.copilotKitButton:focus {
+  box-shadow: 0 0 16px rgba(0, 255, 136, 0.5) !important;
+}
+
+.copilotKitSidebar .copilotKitHeader {
+  background: var(--hud-bg-elevated) !important;
+  color: var(--hud-text-bright) !important;
+  border-bottom: 1px solid var(--hud-border) !important;
+}
+
+.copilotKitSidebar .copilotKitHeader > button {
+  color: var(--hud-text-dim) !important;
+}
+
+.copilotKitSidebar .copilotKitHeader > button:hover {
+  color: var(--hud-text-bright) !important;
+  background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+.copilotKitSidebar .copilotKitMessages {
+  background: var(--hud-bg) !important;
+}
+
+.copilotKitSidebar .copilotKitMessagesContainer {
+  gap: 0.75rem;
+}
+
+.copilotKitSidebar .copilotKitMessage {
+  background: var(--hud-bg-elevated) !important;
+  border: 1px solid var(--hud-border) !important;
+  color: var(--hud-text) !important;
+  box-shadow: none !important;
+  padding: 1rem 1.25rem !important;
+  line-height: 1.6 !important;
+}
+
+.copilotKitSidebar .copilotKitMessage.copilotKitUserMessage {
+  border-color: rgba(0, 255, 136, 0.35) !important;
+}
+
+.copilotKitSidebar .copilotKitMessage.copilotKitAssistantMessage {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.copilotKitSidebar .copilotKitMessageControls {
+  gap: 0.5rem !important;
+  padding-top: 0.4rem !important;
+}
+
+.copilotKitSidebar .copilotKitMessageControlButton {
+  width: 1.5rem !important;
+  height: 1.5rem !important;
+  color: var(--hud-text-dim) !important;
+}
+
+.copilotKitSidebar .copilotKitMessageControlButton svg {
+  width: 0.9rem !important;
+  height: 0.9rem !important;
+}
+
+.copilotKitSidebar .copilotKitInputContainer {
+  background: var(--hud-bg-elevated) !important;
+  border-top: 1px solid var(--hud-border) !important;
+}
+
+.copilotKitSidebar .copilotKitInput {
+  background: rgba(17, 17, 17, 0.85) !important;
+  border: 1px solid var(--hud-border) !important;
+  color: var(--hud-text) !important;
+}
+
+.copilotKitSidebar .copilotKitInput > textarea {
+  color: var(--hud-text) !important;
+}
+
+.copilotKitSidebar .copilotKitInput > textarea::placeholder {
+  color: var(--hud-text-dim) !important;
+}
+
+.copilotKitSidebar .copilotKitInputControlButton {
+  color: var(--hud-text-dim) !important;
+}
+
+.copilotKitSidebar .copilotKitInputControlButton:not([disabled]) {
+  color: var(--hud-accent) !important;
+}
+
+.copilotKitSidebar .copilotKitMessagesFooter {
+  width: 95% !important;
+}
+
+.copilotKitSidebar .poweredBy {
+  background: var(--hud-bg) !important;
+  color: var(--hud-text-dim) !important;
 }
