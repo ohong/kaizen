@@ -4,8 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
+import { CopilotSidebar } from "@copilotkit/react-ui";
 
 import { FeedbackComposer, FeedbackInsights } from "./FeedbackComposer";
+import { SidebarToggleButton } from "@/components/SidebarToggleButton";
 
 // Dummy emails + one real email
 const AVAILABLE_EMAILS = [
@@ -142,12 +144,32 @@ export default function FeedbackPageClient({ defaultSurveyBody }: FeedbackPageCl
   };
 
   return (
-    <div className="relative min-h-screen bg-[var(--hud-bg)] text-[var(--hud-text)]">
-      {/* Corner decorations */}
-      <div className="pointer-events-none fixed top-0 left-0 z-0 h-16 w-16 border-l-2 border-t-2 border-[var(--hud-accent)] opacity-30" />
-      <div className="pointer-events-none fixed top-0 right-0 z-0 h-16 w-16 border-r-2 border-t-2 border-[var(--hud-accent)] opacity-30" />
-      <div className="pointer-events-none fixed bottom-0 left-0 z-0 h-16 w-16 border-b-2 border-l-2 border-[var(--hud-accent)] opacity-30" />
-      <div className="pointer-events-none fixed bottom-0 right-0 z-0 h-16 w-16 border-b-2 border-r-2 border-[var(--hud-accent)] opacity-30" />
+    <CopilotSidebar
+      clickOutsideToClose={false}
+      defaultOpen={false}
+      shortcut="k"
+      Button={SidebarToggleButton}
+      labels={{
+        title: "Kaizen AI",
+        initial: `Hi, I'm Kaizen! I can help you craft better developer surveys and analyze feedback.
+
+**What I can do:**
+- **Draft survey questions**: Help create targeted questions for your team
+- **Analyze feedback**: Understand patterns in developer responses
+- **Suggest improvements**: Recommend follow-up questions or areas to explore
+
+**Start by asking:**
+- "Help me write a survey about deployment friction"
+- "What questions should I ask about code review experience?"
+- "How can I measure developer satisfaction with our tools?"`
+      }}
+    >
+      <div className="relative min-h-screen bg-[var(--hud-bg)] text-[var(--hud-text)]">
+        {/* Corner decorations */}
+        <div className="pointer-events-none fixed top-0 left-0 z-0 h-16 w-16 border-l-2 border-t-2 border-[var(--hud-accent)] opacity-30" />
+        <div className="pointer-events-none fixed top-0 right-0 z-0 h-16 w-16 border-r-2 border-t-2 border-[var(--hud-accent)] opacity-30" />
+        <div className="pointer-events-none fixed bottom-0 left-0 z-0 h-16 w-16 border-b-2 border-l-2 border-[var(--hud-accent)] opacity-30" />
+        <div className="pointer-events-none fixed bottom-0 right-0 z-0 h-16 w-16 border-b-2 border-r-2 border-[var(--hud-accent)] opacity-30" />
 
       {/* Header */}
       <header className="sticky top-0 z-50 border-b border-[var(--hud-border)] bg-[var(--hud-bg)]/95 backdrop-blur-sm">
@@ -426,6 +448,7 @@ export default function FeedbackPageClient({ defaultSurveyBody }: FeedbackPageCl
           </>
         )}
       </main>
-    </div>
+      </div>
+    </CopilotSidebar>
   );
 }

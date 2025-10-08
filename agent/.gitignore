@@ -1,9 +1,9 @@
-venv/
-__pycache__/
-*.pyc
 .env
 .vercel
+CLAUDE.md
 
 # python
 .venv/
+__pycache__/
+*.pyc
 .langgraph_api/

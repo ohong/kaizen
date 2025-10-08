@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { CopilotSidebar, useChatContext } from "@copilotkit/react-ui";
+import { CopilotSidebar } from "@copilotkit/react-ui";
 
 import {
   ActionQueueSection,
@@ -11,7 +11,6 @@ import {
   DashboardHeader,
   DeveloperInsightsSection,
   TeamScoreGrid,
-  GuidedActionsPanel,
   HealthOverviewSection,
   OverviewSection,
   ReportModal,
@@ -43,7 +42,7 @@ import { buildRepositoryUrl, parseRepositoryFromUrl } from "@/lib/repository-uti
 import { supabase } from "@/lib/supabase";
 import { fetchUserRepositories, type GithubRepositoryOption } from "@/lib/github";
 import { formatRelativeDate } from "@/lib/format";
-import { isMacOS } from "@copilotkit/shared";
+import { SidebarToggleButton } from "@/components/SidebarToggleButton";
 
 const AVAILABLE_EMAILS = [
   "javokhir@raisedash.com",
@@ -269,9 +268,6 @@ export default function ManagerDashboard() {
     const mergeTimes = benchmarkRepos
       .map((repo) => repo.avg_merge_hours || 0)
       .filter((value) => value > 0);
-    const reviewTimes = benchmarkRepos
-      .map((repo) => repo.avg_time_to_first_review_hours || 0)
-      .filter((value) => value > 0);
 
     return [
       {
@@ -279,12 +275,6 @@ export default function ManagerDashboard() {
         yourTeam: repoMetrics.avg_merge_hours || 0,
         industryMedian: median(mergeTimes),
         topPerformer: mergeTimes.length ? Math.min(...mergeTimes) : undefined,
-      },
-      {
-        name: "First Review (h)",
-        yourTeam: repoMetrics.avg_time_to_first_review_hours || 0,
-        industryMedian: median(reviewTimes),
-        topPerformer: reviewTimes.length ? Math.min(...reviewTimes) : undefined,
       },
     ];
   }, [repoMetrics, benchmarkRepos]);
@@ -298,7 +288,6 @@ export default function ManagerDashboard() {
     }[];
 
     const mergeRates = benchmarkRepos.map((repo) => repo.merge_rate_percent || 0);
-    const reviewDepths = benchmarkRepos.map((repo) => repo.avg_reviews_per_pr || 0);
 
     return [
       {
@@ -306,12 +295,6 @@ export default function ManagerDashboard() {
         yourTeam: repoMetrics.merge_rate_percent || 0,
         industryMedian: median(mergeRates),
         topPerformer: mergeRates.length ? Math.max(...mergeRates) : undefined,
-      },
-      {
-        name: "Reviews per PR",
-        yourTeam: repoMetrics.avg_reviews_per_pr || 0,
-        industryMedian: median(reviewDepths),
-        topPerformer: reviewDepths.length ? Math.max(...reviewDepths) : undefined,
       },
     ];
   }, [repoMetrics, benchmarkRepos]);
@@ -550,12 +533,6 @@ export default function ManagerDashboard() {
             </div>
           )}
 
-          <GuidedActionsPanel
-            onAddRepository={handleOpenAddRepoModal}
-            onSync={handleSync}
-            onOpenReport={handleOpenReportModal}
-          />
-
           {loading && prs.length === 0 ? (
             <div className="hud-panel hud-corner p-12 text-center text-sm text-[var(--hud-text-dim)]">
               Loading data for the control tower…
@@ -679,44 +656,5 @@ export default function ManagerDashboard() {
         />
       </div>
     </CopilotSidebar>
-  );
-}
-
-function SidebarToggleButton() {
-  const { open, setOpen, icons } = useChatContext();
-  const [hovered, setHovered] = useState(false);
-
-  useEffect(() => {
-    if (open) {
-      setHovered(false);
-    }
-  }, [open]);
-
-  const shortcutHint = typeof window !== 'undefined' && isMacOS() ? "⌘K" : "Ctrl+K";
-  const tooltipText = open ? "Close Copilot" : `Open Copilot (${shortcutHint})`;
-  const showTooltip = !open && hovered;
-
-  return (
-    <div
-      className="relative"
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        aria-label={tooltipText}
-        title={tooltipText}
-        className={`copilotKitButton ${open ? "open" : ""}`}
-      >
-        <div className="copilotKitButtonIcon copilotKitButtonIconOpen">{icons.openIcon}</div>
-        <div className="copilotKitButtonIcon copilotKitButtonIconClose">{icons.closeIcon}</div>
-      </button>
-      {showTooltip && (
-        <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 rounded-md border border-[var(--hud-border)] bg-[var(--hud-bg-elevated)] px-3 py-1 font-mono text-[10px] uppercase tracking-wider text-[var(--hud-text-dim)] shadow-lg">
-          {shortcutHint} to open
-        </div>
-      )}
-    </div>
   );
 }

@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
+import { CopilotSidebar } from "@copilotkit/react-ui";
 import { supabase } from "@/lib/supabase";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getAvailableRepositories, parseRepositoryFromUrl, buildRepositoryUrl } from "@/lib/repository-utils";
@@ -12,6 +13,7 @@ import type { RepositoryOption } from "@/lib/repository-utils";
 import { Datadog } from "@/components/icons/Datadog";
 import { GitHubIcon } from "@/components/icons/GitHub";
 import { Linear } from "@/components/icons/Linear";
+import { SidebarToggleButton } from "@/components/SidebarToggleButton";
 
 type Integration = Database['public']['Tables']['integrations']['Row'];
 type IntegrationInsert = Database['public']['Tables']['integrations']['Insert'];
@@ -384,12 +386,32 @@ export default function IntegrationsPage() {
   }
 
   return (
-    <div className="relative min-h-screen bg-[var(--hud-bg)] text-[var(--hud-text)]">
-      {/* Corner decorations */}
-      <div className="pointer-events-none fixed top-0 left-0 z-0 h-16 w-16 border-l-2 border-t-2 border-[var(--hud-accent)] opacity-30" />
-      <div className="pointer-events-none fixed top-0 right-0 z-0 h-16 w-16 border-r-2 border-t-2 border-[var(--hud-accent)] opacity-30" />
-      <div className="pointer-events-none fixed bottom-0 left-0 z-0 h-16 w-16 border-b-2 border-l-2 border-[var(--hud-accent)] opacity-30" />
-      <div className="pointer-events-none fixed bottom-0 right-0 z-0 h-16 w-16 border-b-2 border-r-2 border-[var(--hud-accent)] opacity-30" />
+    <CopilotSidebar
+      clickOutsideToClose={false}
+      defaultOpen={false}
+      shortcut="k"
+      Button={SidebarToggleButton}
+      labels={{
+        title: "Kaizen AI",
+        initial: `Hi, I'm Kaizen! I can help you set up and manage your integrations.
+
+**What I can do:**
+- **Guide integration setup**: Help configure GitHub, Linear, and Datadog connections
+- **Troubleshoot issues**: Diagnose connection problems and API errors
+- **Explain permissions**: Clarify what scopes and access are needed
+
+**Start by asking:**
+- "How do I connect my GitHub organization?"
+- "What Datadog permissions do I need?"
+- "Why isn't my Linear integration syncing?"`
+      }}
+    >
+      <div className="relative min-h-screen bg-[var(--hud-bg)] text-[var(--hud-text)]">
+        {/* Corner decorations */}
+        <div className="pointer-events-none fixed top-0 left-0 z-0 h-16 w-16 border-l-2 border-t-2 border-[var(--hud-accent)] opacity-30" />
+        <div className="pointer-events-none fixed top-0 right-0 z-0 h-16 w-16 border-r-2 border-t-2 border-[var(--hud-accent)] opacity-30" />
+        <div className="pointer-events-none fixed bottom-0 left-0 z-0 h-16 w-16 border-b-2 border-l-2 border-[var(--hud-accent)] opacity-30" />
+        <div className="pointer-events-none fixed bottom-0 right-0 z-0 h-16 w-16 border-b-2 border-r-2 border-[var(--hud-accent)] opacity-30" />
 
       {/* Header */}
       <header className="sticky top-0 z-50 border-b border-[var(--hud-border)] bg-[var(--hud-bg)]/95 backdrop-blur-sm">
@@ -875,6 +897,7 @@ export default function IntegrationsPage() {
           </div>
         )}
       </div>
-    </div>
+      </div>
+    </CopilotSidebar>
   );
 }

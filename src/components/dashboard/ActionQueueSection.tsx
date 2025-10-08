@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import type { ActionGroup } from "@/lib/dashboard";
 import { formatInteger, formatRelativeDate } from "@/lib/format";
 
@@ -25,11 +28,16 @@ export function ActionQueueSection({ actionGroups }: ActionQueueSectionProps) {
 }
 
 function ActionGroupCard({ group }: { group: ActionGroup }) {
+  const [showAll, setShowAll] = useState(false);
+
   const oldestUpdate = group.prs.reduce<string | null>((oldest, pr) => {
     if (!pr.updated_at) return oldest;
     if (!oldest) return pr.updated_at;
     return new Date(pr.updated_at) < new Date(oldest) ? pr.updated_at : oldest;
   }, null);
+
+  const displayedPRs = showAll ? group.prs : group.prs.slice(0, 3);
+  const remainingCount = group.prs.length - 3;
 
   return (
     <div className="hud-panel hud-corner p-3">
@@ -53,10 +61,22 @@ function ActionGroupCard({ group }: { group: ActionGroup }) {
             ▸
           </span>
         </summary>
-        <div className="mt-4 space-y-3">
-          {group.prs.map((pr) => (
-            <PRListItem key={pr.id ?? pr.pr_number} pr={pr} />
-          ))}
+        <div className="mt-4">
+          <div className={`space-y-3 ${showAll ? "max-h-[600px] overflow-y-auto pr-1" : ""}`}>
+            {displayedPRs.map((pr) => (
+              <PRListItem key={pr.id ?? pr.pr_number} pr={pr} />
+            ))}
+          </div>
+
+          {remainingCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowAll(!showAll)}
+              className="mt-3 w-full rounded-lg border border-[var(--hud-border)]/50 bg-[var(--hud-bg-elevated)] px-3 py-2 text-center font-mono text-[10px] uppercase tracking-wider text-[var(--hud-accent)] transition-all duration-200 hover:border-[var(--hud-accent)]/60 hover:bg-[var(--hud-accent)]/10"
+            >
+              {showAll ? "Show less" : `Show ${remainingCount} more PR${remainingCount === 1 ? "" : "s"}`}
+            </button>
+          )}
         </div>
       </details>
     </div>
