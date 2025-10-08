@@ -1,7 +1,11 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+design/
+
 # coding agents
 CLAUDE.md
+improvement-plan.md
+CHANGES_SUMMARY.md
 
 # dependencies
 /node_modules

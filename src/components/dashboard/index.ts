@@ -1,14 +1,10 @@
 export { DashboardHeader } from "./DashboardHeader";
-export { ControlTowerHero } from "./ControlTowerHero";
 export { OverviewSection } from "./OverviewSection";
 export { HealthOverviewSection } from "./HealthOverviewSection";
 export { ActionQueueSection } from "./ActionQueueSection";
 export { DeveloperInsightsSection } from "./DeveloperInsightsSection";
 export { TeamScoreGrid } from "./TeamScoreGrid";
-export { WorkflowSignalsSection } from "./WorkflowSignalsSection";
-export { BenchmarkInsightsSection } from "./BenchmarkInsightsSection";
 export { BenchmarkSummary } from "./BenchmarkSummary";
 export { ReportModal } from "./ReportModal";
 export { RepositorySelector } from "./RepositorySelector";
 export { AddRepositoryModal } from "./AddRepositoryModal";
-export { GuidedActionsPanel } from "./GuidedActionsPanel";

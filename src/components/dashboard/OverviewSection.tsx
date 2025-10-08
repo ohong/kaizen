@@ -18,10 +18,23 @@ interface OverviewCopy {
 
 const MAX_ITEM_LENGTH = 140;
 
-export function OverviewSection({ repository, wins, focusAreas, actionGroups }: OverviewSectionProps) {
+export function OverviewSection({
+  repository,
+  wins,
+  focusAreas,
+  actionGroups,
+}: OverviewSectionProps) {
   const [copy, setCopy] = useState<OverviewCopy>({ working: [], toWorkOn: [] });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const navigationAnchors = [
+    { href: "#overview", label: "Overview" },
+    { href: "#metrics", label: "Metrics" },
+    { href: "#benchmarks", label: "Benchmarks" },
+    { href: "#blockers", label: "Blockers" },
+    { href: "#team", label: "Team" },
+  ];
 
   const payload = useMemo(() => {
     const trimmedQueue = actionGroups.slice(0, 4).map((group) => ({
@@ -68,7 +81,10 @@ export function OverviewSection({ repository, wins, focusAreas, actionGroups }: 
           throw new Error("Failed to summarise overview");
         }
 
-        const data = (await response.json()) as { working?: string[]; toWorkOn?: string[] };
+        const data = (await response.json()) as {
+          working?: string[];
+          toWorkOn?: string[];
+        };
 
         if (isMounted) {
           setCopy({
@@ -100,23 +116,37 @@ export function OverviewSection({ repository, wins, focusAreas, actionGroups }: 
   }, [payload, wins, focusAreas, actionGroups]);
 
   return (
-    <section className="hud-panel hud-corner hud-scanline p-6">
-      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+    <section className="hud-panel-prominent hud-corner p-8">
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
-          <p className="font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
-            Overview
-          </p>
-          <h2 className="mt-1 text-2xl font-semibold text-[var(--hud-text-bright)]">
-            Where to steer next
+          <p className="hud-badge">Executive Summary</p>
+          <h2 className="mt-2 text-3xl font-semibold text-[var(--hud-text-bright)]">
+            Engineering Efficiency Overview
           </h2>
-          <p className="mt-2 max-w-2xl text-sm text-[var(--hud-text-dim)]">
-            The top wins and risks for {repository.owner}/{repository.name}. Direct your team toward the
-            biggest opportunities and unblock the work that needs attention first.
+          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[var(--hud-text)]">
+            The top wins and risks for {repository.owner}/{repository.name}.
+            Direct your team toward the biggest opportunities and unblock the
+            work that needs attention first.
           </p>
+          <nav
+            aria-label="Dashboard sections"
+            className="mt-4 flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.25em] text-[var(--hud-text-dim)]"
+          >
+            {navigationAnchors.map((anchor) => (
+              <a
+                key={anchor.href}
+                href={anchor.href}
+                className="group relative overflow-hidden rounded-full border border-[var(--hud-border)] px-3 py-1 transition-colors duration-200 hover:border-[var(--hud-accent)] hover:text-[var(--hud-accent)]"
+              >
+                <span className="relative z-10">{anchor.label}</span>
+                <span className="absolute inset-0 -z-0 translate-y-full bg-[var(--hud-accent)]/10 transition-transform duration-200 group-hover:translate-y-0" />
+              </a>
+            ))}
+          </nav>
         </div>
         {loading && (
-          <span className="font-mono text-[11px] uppercase tracking-wider text-[var(--hud-text-dim)]">
-            Summarising…
+          <span className="font-mono text-[11px] uppercase tracking-wider text-[var(--hud-accent)]">
+            Analyzing…
           </span>
         )}
       </div>
@@ -135,7 +165,7 @@ export function OverviewSection({ repository, wins, focusAreas, actionGroups }: 
           loading={loading && !copy.working.length}
         />
         <OverviewList
-          title="What To Work On"
+          title="What To Improve"
           tone="warning"
           items={copy.toWorkOn}
           loading={loading && !copy.toWorkOn.length}
@@ -156,23 +186,54 @@ function OverviewList({
   tone: "positive" | "warning";
   loading: boolean;
 }) {
-  const accent = tone === "positive" ? "text-[var(--hud-accent)]" : "text-[#ffaa00]";
-  const border = tone === "positive" ? "border-[var(--hud-accent)]/30" : "border-[#ffaa00]/30";
-  const background = tone === "positive" ? "bg-[var(--hud-accent)]/5" : "bg-[#ffaa00]/5";
+  const accent =
+    tone === "positive"
+      ? "text-[var(--hud-success)]"
+      : "text-[var(--hud-warning)]";
+  const border =
+    tone === "positive"
+      ? "border-[var(--hud-success)]/40"
+      : "border-[var(--hud-warning)]/40";
+  const bgGradient =
+    tone === "positive"
+      ? "bg-gradient-to-br from-[#10b981]/10 to-[#10b981]/5"
+      : "bg-gradient-to-br from-[#f59e0b]/10 to-[#f59e0b]/5";
 
   return (
-    <div className={`hud-panel hud-corner p-5 ${border} ${background}`}>
-      <p className={`font-mono text-xs uppercase tracking-wider ${accent}`}>{title}</p>
-      <div className="mt-3 space-y-3 text-sm text-[var(--hud-text)]">
+    <div
+      className={`hud-panel-elevated hud-corner p-6 transition-transform duration-200 hover:-translate-y-1 ${border} ${bgGradient}`}
+    >
+      <div className="flex items-center gap-2">
+        <div
+          className={`h-2 w-2 rounded-full ${tone === "positive" ? "bg-[var(--hud-success)]" : "bg-[var(--hud-warning)]"}`}
+        />
+        <p
+          className={`font-mono text-xs uppercase tracking-wider ${accent} font-semibold`}
+        >
+          {title}
+        </p>
+      </div>
+      <div className="mt-4 space-y-4 text-sm text-[var(--hud-text)]">
         {loading ? (
           <SkeletonList count={3} />
         ) : items.length === 0 ? (
-          <p className="text-[var(--hud-text-dim)]">We need more data to highlight insights here.</p>
+          <p className="text-[var(--hud-text-dim)]">
+            We need more data to highlight insights here.
+          </p>
         ) : (
           items.map((item, index) => (
-            <div key={`${title}-${index}`} className="flex items-start gap-3">
-              <span className={`font-mono text-sm ${accent}`}>#{index + 1}</span>
-              <p className="leading-relaxed">{item}</p>
+            <div
+              key={`${title}-${index}`}
+              className="flex items-start gap-3 group"
+            >
+              <span
+                className={`font-mono text-sm ${accent} font-semibold min-w-[1.5rem]`}
+              >
+                #{index + 1}
+              </span>
+              <p className="leading-relaxed group-hover:text-[var(--hud-text-bright)] transition-colors">
+                {item}
+              </p>
             </div>
           ))
         )}
@@ -185,7 +246,10 @@ function SkeletonList({ count }: { count: number }) {
   return (
     <div className="space-y-2">
       {Array.from({ length: count }).map((_, index) => (
-        <div key={index} className="h-4 animate-pulse rounded bg-[var(--hud-border)]/50" />
+        <div
+          key={index}
+          className="h-4 animate-pulse rounded bg-[var(--hud-border)]/50"
+        />
       ))}
     </div>
   );

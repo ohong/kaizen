@@ -28,7 +28,7 @@ export interface ActionGroup {
 
 export function computeTeamHealth(
   repoMetrics: RepositoryMetrics | undefined,
-  prs: PullRequest[]
+  prs: PullRequest[],
 ): HealthSummary {
   const openPrs = prs.filter((pr) => pr.state === "open");
   const backlogBuckets = bucketOpenPrs(openPrs);
@@ -47,7 +47,8 @@ export function computeTeamHealth(
       smallPRShare: null,
       largePRShare: null,
       openPrCount: openPrs.length,
-      stalePrCount: openPrs.filter((pr) => hoursSince(pr.updated_at) > 72).length,
+      stalePrCount: openPrs.filter((pr) => hoursSince(pr.updated_at) > 72)
+        .length,
       backlogBuckets,
       wins: [],
       focusAreas: [],
@@ -59,7 +60,8 @@ export function computeTeamHealth(
     : null;
   const mergeRate = repoMetrics.merge_rate_percent ?? null;
   const avgMergeHours = repoMetrics.avg_merge_hours ?? null;
-  const avgTimeToFirstReview = repoMetrics.avg_time_to_first_review_hours ?? null;
+  const avgTimeToFirstReview =
+    repoMetrics.avg_time_to_first_review_hours ?? null;
   const avgReviewsPerPR = repoMetrics.avg_reviews_per_pr ?? null;
   const activeContributors = repoMetrics.active_contributors ?? null;
   const smallPRShare = repoMetrics.total_prs
@@ -70,15 +72,23 @@ export function computeTeamHealth(
     : null;
 
   const throughputScore =
-    throughputPerWeek !== null ? Math.min(100, (throughputPerWeek / 20) * 100) : 60;
-  const mergeRateScore = mergeRate !== null ? Math.min(100, (mergeRate / 90) * 100) : 60;
+    throughputPerWeek !== null
+      ? Math.min(100, (throughputPerWeek / 20) * 100)
+      : 60;
+  const mergeRateScore =
+    mergeRate !== null ? Math.min(100, (mergeRate / 90) * 100) : 60;
   const mergeTimeScore =
     avgMergeHours !== null ? Math.max(0, 100 - (avgMergeHours / 48) * 100) : 60;
   const reviewTimeScore =
-    avgTimeToFirstReview !== null ? Math.max(0, 100 - (avgTimeToFirstReview / 12) * 100) : 60;
+    avgTimeToFirstReview !== null
+      ? Math.max(0, 100 - (avgTimeToFirstReview / 12) * 100)
+      : 60;
 
   const healthScore = Math.round(
-    mergeRateScore * 0.3 + mergeTimeScore * 0.3 + reviewTimeScore * 0.2 + throughputScore * 0.2
+    mergeRateScore * 0.3 +
+      mergeTimeScore * 0.3 +
+      reviewTimeScore * 0.2 +
+      throughputScore * 0.2,
   );
   const healthPercentile = repoMetrics.health_percentile ?? null;
 
@@ -98,27 +108,43 @@ export function computeTeamHealth(
     wins.push(`Merge rate is strong at ${mergeRate.toFixed(1)}%.`);
   }
   if (avgTimeToFirstReview !== null && avgTimeToFirstReview <= 12) {
-    wins.push(`First reviews land in ${avgTimeToFirstReview.toFixed(1)}h on average.`);
+    wins.push(
+      `First reviews land in ${avgTimeToFirstReview.toFixed(1)}h on average.`,
+    );
   }
   if (smallPRShare !== null && smallPRShare >= 60) {
-    wins.push(`${Math.round(smallPRShare)}% of PRs are small and easy to review.`);
+    wins.push(
+      `${Math.round(smallPRShare)}% of PRs are small and easy to review.`,
+    );
   }
   if (throughputPerWeek !== null && throughputPerWeek >= 15) {
-    wins.push(`Team ships roughly ${throughputPerWeek.toFixed(1)} PRs per week.`);
+    wins.push(
+      `Team ships roughly ${throughputPerWeek.toFixed(1)} PRs per week.`,
+    );
   }
 
-  const stalePrCount = openPrs.filter((pr) => hoursSince(pr.updated_at) > 72).length;
+  const stalePrCount = openPrs.filter(
+    (pr) => hoursSince(pr.updated_at) > 72,
+  ).length;
   if (avgMergeHours !== null && avgMergeHours > 48) {
-    focusAreas.push(`Avg merge time is ${avgMergeHours.toFixed(1)}h — target < 48h.`);
+    focusAreas.push(
+      `Avg merge time is ${avgMergeHours.toFixed(1)}h — target < 48h.`,
+    );
   }
   if (avgTimeToFirstReview !== null && avgTimeToFirstReview > 16) {
-    focusAreas.push(`First review waits ${avgTimeToFirstReview.toFixed(1)}h — aim for < 12h.`);
+    focusAreas.push(
+      `First review waits ${avgTimeToFirstReview.toFixed(1)}h — aim for < 12h.`,
+    );
   }
   if (stalePrCount > 0) {
-    focusAreas.push(`${stalePrCount} open PR${stalePrCount === 1 ? "" : "s"} idle > 3 days.`);
+    focusAreas.push(
+      `${stalePrCount} open PR${stalePrCount === 1 ? "" : "s"} idle > 3 days.`,
+    );
   }
   if (largePRShare !== null && largePRShare > 20) {
-    focusAreas.push(`${Math.round(largePRShare)}% of PRs are large — encourage smaller chunks.`);
+    focusAreas.push(
+      `${Math.round(largePRShare)}% of PRs are large — encourage smaller chunks.`,
+    );
   }
 
   return {
@@ -145,20 +171,26 @@ export function buildActionGroups(prs: PullRequest[]): ActionGroup[] {
   const openPrs = prs.filter((pr) => pr.state === "open");
   const stale = openPrs
     .filter((pr) => hoursSince(pr.updated_at) > 72)
-    .sort((a, b) => new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime())
+    .sort(
+      (a, b) =>
+        new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime(),
+    )
     .slice(0, 5);
   const waitingForReview = openPrs
     .filter(
       (pr) =>
         (pr.reviews_count ?? 0) === 0 &&
         (pr.review_comments_count ?? 0) === 0 &&
-        hoursSince(pr.created_at) > 24
+        hoursSince(pr.created_at) > 24,
     )
     .slice(0, 5);
   const large = openPrs
     .filter((pr) => (pr.additions ?? 0) + (pr.deletions ?? 0) > 1200)
     .sort(
-      (a, b) => (b.additions ?? 0) + (b.deletions ?? 0) - ((a.additions ?? 0) + (a.deletions ?? 0))
+      (a, b) =>
+        (b.additions ?? 0) +
+        (b.deletions ?? 0) -
+        ((a.additions ?? 0) + (a.deletions ?? 0)),
     )
     .slice(0, 5);
 
@@ -168,7 +200,7 @@ export function buildActionGroups(prs: PullRequest[]): ActionGroup[] {
     groups.push({
       key: "stale",
       title: "Stuck > 3 days",
-      description: "These PRs haven't seen movement in 72h+. Help them land.",
+      description: "These PRs haven't seen movement in 72h+.",
       prs: stale,
     });
   }
@@ -205,7 +237,9 @@ export function median(values: number[]): number {
   if (!values.length) return 0;
   const sorted = [...values].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+  return sorted.length % 2 === 0
+    ? (sorted[mid - 1] + sorted[mid]) / 2
+    : sorted[mid];
 }
 
 export function hoursSince(iso: string | null): number {

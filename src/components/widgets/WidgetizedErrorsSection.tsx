@@ -7,6 +7,7 @@ import { resolveServiceName } from "@/lib/errors";
 import { useWidgets } from "@/hooks/useWidgets";
 import { WidgetGrid } from "./WidgetGrid";
 import { WidgetCatalog } from "./WidgetCatalog";
+import { WidgetWrapper } from "./WidgetWrapper";
 import {
   ErrorsOverTimeWidget,
   ServicesImpactedWidget,
@@ -196,6 +197,25 @@ export function WidgetizedErrorsSection({ owner, name }: WidgetizedErrorsSection
     widgets.filter((w) => w.enabled && w.type.startsWith("errors-") || w.type.includes("error")).map((w) => w.type)
   );
 
+  const enabledWidgets = [...widgets]
+    .filter((w) => w.enabled)
+    .sort((a, b) => a.order - b.order);
+
+  const pairedWidgets = enabledWidgets.filter(
+    (w) => w.type === "recent-errors" || w.type === "top-error-messages"
+  );
+
+  const remainingWidgets = enabledWidgets.filter(
+    (w) =>
+      w.type !== "recent-errors" &&
+      w.type !== "top-error-messages" &&
+      (w.type === "errors-over-time" ||
+        w.type === "services-impacted" ||
+        w.type === "environment-spread" ||
+        w.type === "recent-errors" ||
+        w.type === "top-error-messages")
+  );
+
   return (
     <section>
       <div className="mb-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -246,14 +266,38 @@ export function WidgetizedErrorsSection({ owner, name }: WidgetizedErrorsSection
         </div>
       )}
 
+      {pairedWidgets.length > 0 && (
+        <div className="mb-6 grid gap-6 lg:grid-cols-2">
+          {pairedWidgets.map((widget) => {
+            const widgetIndex = enabledWidgets.findIndex((w) => w.id === widget.id);
+            const canMoveUp = widgetIndex > 0;
+            const canMoveDown = widgetIndex >= 0 && widgetIndex < enabledWidgets.length - 1;
+
+            return (
+            <WidgetWrapper
+              key={widget.id}
+              widget={widget}
+              onRemove={removeWidget}
+              onResize={resizeWidget}
+              onMoveUp={(id) => reorderWidget(id, "up")}
+              onMoveDown={(id) => reorderWidget(id, "down")}
+              canMoveUp={canMoveUp}
+              canMoveDown={canMoveDown}
+              editMode={editMode}
+            >
+              {widget.type === "recent-errors" ? (
+                <RecentErrorsWidget recent={summary.recent} loading={loading} />
+              ) : (
+                <TopErrorMessagesWidget topMessages={summary.topMessages} loading={loading} />
+              )}
+            </WidgetWrapper>
+            );
+          })}
+        </div>
+      )}
+
       <WidgetGrid
-        widgets={widgets.filter((w) =>
-          w.type === "errors-over-time" ||
-          w.type === "services-impacted" ||
-          w.type === "environment-spread" ||
-          w.type === "recent-errors" ||
-          w.type === "top-error-messages"
-        )}
+        widgets={remainingWidgets}
         onRemove={removeWidget}
         onResize={resizeWidget}
         onReorder={reorderWidget}
@@ -267,10 +311,6 @@ export function WidgetizedErrorsSection({ owner, name }: WidgetizedErrorsSection
               return <ServicesImpactedWidget byService={summary.byService} />;
             case "environment-spread":
               return <EnvironmentSpreadWidget byEnv={summary.byEnv} />;
-            case "recent-errors":
-              return <RecentErrorsWidget recent={summary.recent} loading={loading} />;
-            case "top-error-messages":
-              return <TopErrorMessagesWidget topMessages={summary.topMessages} loading={loading} />;
             default:
               return null;
           }

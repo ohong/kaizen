@@ -1,21 +1,45 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Roboto+Mono:wght@400;500;600;700&display=swap");
 @import "tailwindcss";
 
 :root {
+  /* Background layers (dark to light for depth) */
   --hud-bg: #0a0a0a;
-  --hud-bg-elevated: #111111;
-  --hud-border: #1a1a1a;
+  --hud-bg-elevated: #141414;
+  --hud-bg-raised: #1a1a1a;
+  --hud-bg-highest: #202020;
+
+  --hud-border: #2a2a2a;
+  --hud-border-subtle: #1a1a1a;
+
+  /* Primary accent */
   --hud-accent: #00ff88;
   --hud-accent-dim: #00cc6a;
-  --hud-warning: #ffaa00;
-  --hud-danger: #ff3366;
-  --hud-text: #e0e0e0;
-  --hud-text-dim: #888888;
-  --hud-text-bright: #ffffff;
+  --hud-accent-glow: rgba(0, 255, 136, 0.18);
+
+  /* Semantic colors */
+  --hud-success: #10b981;
+  --hud-warning: #f59e0b;
+  --hud-danger: #ef4444;
+  --hud-info: #3b82f6;
+
+  /* Text layers */
+  --hud-text: #d4d4d4;
+  --hud-text-dim: #737373;
+  --hud-text-bright: #fafafa;
+
+  /* Shadows for depth */
+  --shadow-subtle: 0 -1px 1px 0 rgba(255, 255, 255, 0.02), 0 1px 2px 0 rgba(0, 0, 0, 0.35);
+  --shadow-medium: 0 -2px 4px 0 rgba(255, 255, 255, 0.04), 0 12px 24px -12px rgba(0, 0, 0, 0.65);
+  --shadow-large: 0 -4px 12px 0 rgba(255, 255, 255, 0.05), 0 24px 36px -16px rgba(0, 0, 0, 0.75);
+
+  /* Glow effects */
   --hud-glow: rgba(0, 255, 136, 0.3);
 
   --background: var(--hud-bg);
   --foreground: var(--hud-text);
+
+  --hud-grid-line: rgba(255, 255, 255, 0.04);
+  --hud-grid-highlight: rgba(0, 255, 136, 0.05);
 }
 
 /* CopilotKit theme overrides */
@@ -41,18 +65,59 @@ body {
 body {
   color: var(--hud-text);
   background: var(--hud-bg);
-  font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
-  letter-spacing: -0.01em;
+  font-family: "Roboto Mono", "Inter", "JetBrains Mono", "Courier New", monospace;
+  letter-spacing: -0.015em;
+  font-feature-settings: "tnum" 1, "ss01" 1;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(10, 10, 10, 0.8) 0%, rgba(10, 10, 10, 0.96) 100%),
+    repeating-linear-gradient(
+      to right,
+      var(--hud-grid-line) 0,
+      var(--hud-grid-line) 1px,
+      transparent 1px,
+      transparent 80px
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      var(--hud-grid-line) 0,
+      var(--hud-grid-line) 1px,
+      transparent 1px,
+      transparent 80px
+    );
+  mix-blend-mode: lighten;
+  z-index: -1;
 }
 
 .font-mono {
-  font-family: "JetBrains Mono", "Courier New", monospace;
+  font-family: "Roboto Mono", "JetBrains Mono", "Courier New", monospace;
 }
 
 .hud-panel {
-  background: var(--hud-bg-elevated);
+  background: linear-gradient(155deg, rgba(20, 20, 20, 0.92), rgba(14, 14, 14, 0.85));
   border: 1px solid var(--hud-border);
-  box-shadow: 0 0 20px rgba(0, 0, 0, 0.5), inset 0 0 1px rgba(255, 255, 255, 0.05);
+  box-shadow: var(--shadow-subtle);
+  backdrop-filter: blur(4px);
+}
+
+.hud-panel-elevated {
+  background: linear-gradient(160deg, rgba(26, 26, 26, 0.95), rgba(16, 16, 16, 0.88));
+  border: 1px solid rgba(83, 255, 191, 0.08);
+  box-shadow: var(--shadow-medium);
+  backdrop-filter: blur(6px);
+}
+
+.hud-panel-prominent {
+  background: linear-gradient(155deg, rgba(12, 50, 40, 0.65), rgba(10, 10, 10, 0.9));
+  border: 1px solid rgba(0, 255, 136, 0.25);
+  box-shadow: var(--shadow-large);
+  backdrop-filter: blur(10px);
 }
 
 .hud-corner {
@@ -66,6 +131,7 @@ body {
   width: 8px;
   height: 8px;
   border: 1px solid var(--hud-accent);
+  box-shadow: 0 0 12px var(--hud-accent-glow);
 }
 
 .hud-corner::before {
@@ -86,6 +152,28 @@ body {
   box-shadow: 0 0 10px var(--hud-glow), 0 0 20px rgba(0, 255, 136, 0.2);
 }
 
+.hud-tertiary {
+  background: linear-gradient(160deg, rgba(32, 32, 32, 0.8), rgba(18, 18, 18, 0.9));
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.hud-divider {
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(255, 255, 255, 0.08),
+    transparent
+  );
+  height: 1px;
+  border: none;
+}
+
+.hud-grid-snap {
+  scroll-snap-type: x mandatory;
+  mask-image: linear-gradient(to right, transparent, black 40%, black 60%, transparent);
+}
+
 .hud-scanline {
   position: relative;
   overflow: hidden;
@@ -104,6 +192,20 @@ body {
   );
   pointer-events: none;
   opacity: 0.3;
+}
+
+.hud-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(16, 16, 16, 0.85);
+  padding: 0.35rem 0.75rem;
+  font-size: 10px;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--hud-text-dim);
 }
 
 /* CopilotKit component styling */

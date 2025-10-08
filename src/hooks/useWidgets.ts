@@ -17,7 +17,12 @@ export function useWidgets(namespace: string = "default") {
       const stored = localStorage.getItem(storageKey);
       if (stored) {
         const parsed = JSON.parse(stored) as WidgetConfig[];
-        setWidgets(parsed);
+        const normalised = parsed.map((widget) =>
+          widget.type === "recent-errors" || widget.type === "top-error-messages"
+            ? { ...widget, size: widget.size === "full" ? "full" : "medium" }
+            : widget
+        );
+        setWidgets(normalised);
       }
     } catch (error) {
       console.error("Failed to load widget config from localStorage:", error);

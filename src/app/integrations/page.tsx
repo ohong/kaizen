@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { Suspense, useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -46,7 +46,7 @@ type MinimalSession = {
   };
 } | null;
 
-export default function IntegrationsPage() {
+function IntegrationsPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   
@@ -658,8 +658,8 @@ export default function IntegrationsPage() {
           <div className="px-6 py-4 border-b border-[var(--hud-border)]">
             <h2 className="text-lg font-semibold text-[var(--hud-text-bright)]">Existing Integrations</h2>
           </div>
-          
-          {integrations.length === 0 ? (
+
+          {!githubConnected && integrations.length === 0 ? (
             <div className="px-6 py-12 text-center">
               <svg className="mx-auto h-12 w-12 text-[var(--hud-text-dim)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
@@ -669,6 +669,43 @@ export default function IntegrationsPage() {
             </div>
           ) : (
             <div className="divide-y divide-[var(--hud-border)]">
+              {/* GitHub Integration (if connected) */}
+              {githubConnected && (
+                <div className="px-6 py-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <div className="flex-shrink-0">
+                        <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center">
+                          <GitHubIcon className="h-6 w-6 text-black" />
+                        </div>
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-medium text-[var(--hud-text-bright)]">
+                          GitHub
+                        </h3>
+                        <p className="text-sm text-[var(--hud-text-dim)]">
+                          {githubUsername ? `@${githubUsername}` : 'OAuth Connected'}
+                        </p>
+                        <div className="flex items-center space-x-2 mt-1">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getIntegrationStatusColor('active')}`}>
+                            active
+                          </span>
+                          <span className="text-xs text-[var(--hud-text-dim)]">
+                            github
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xs text-[var(--hud-text-dim)]">
+                        OAuth integration
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Other Integrations */}
               {integrations.map((integration) => (
                 <div key={integration.id} className="px-6 py-4">
                   <div className="flex items-center justify-between">
@@ -899,5 +936,19 @@ export default function IntegrationsPage() {
       </div>
       </div>
     </CopilotSidebar>
+  );
+}
+
+export default function IntegrationsPage() {
+  return (
+    <Suspense fallback={
+      <div className="relative min-h-screen bg-[var(--hud-bg)] text-[var(--hud-text)] flex items-center justify-center">
+        <div className="hud-panel hud-corner p-12 text-center text-sm text-[var(--hud-text-dim)]">
+          Loading integrations…
+        </div>
+      </div>
+    }>
+      <IntegrationsPageContent />
+    </Suspense>
   );
 }

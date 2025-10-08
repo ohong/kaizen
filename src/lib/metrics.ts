@@ -438,8 +438,8 @@ function interpretTeamScore(metric: string, score: number): {
     interpretation = `Team ${metric} is solid with room to optimise.`;
     recommendation = "Dig into the sub-metrics above to find the biggest win.";
   } else if (score >= 40) {
-    interpretation = `Team ${metric} is inconsistent—attention required.`;
-    recommendation = "Use the blockers and recommendations panels to identify next actions.";
+    interpretation = `Team ${metric} is trending in the wrong direction.`;
+    recommendation = "Focus on the most lagging signal above to close gaps quickly.";
   } else {
     interpretation = `Team ${metric} is at risk—intervene quickly.`;
     recommendation = "Prioritise coaching and process changes before it impacts delivery further.";

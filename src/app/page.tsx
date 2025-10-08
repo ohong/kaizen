@@ -1,13 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CopilotSidebar } from "@copilotkit/react-ui";
 
 import {
   ActionQueueSection,
   AddRepositoryModal,
-  ControlTowerHero,
   DashboardHeader,
   DeveloperInsightsSection,
   TeamScoreGrid,
@@ -86,7 +85,7 @@ interface ReportPayload {
   errors: ErrorsSummary | null;
 }
 
-export default function ManagerDashboard() {
+function ManagerDashboardContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -517,58 +516,57 @@ export default function ManagerDashboard() {
           onRepositoryChange={handleRepositoryChange}
         />
 
-        <main className="mx-auto flex max-w-[1600px] flex-col gap-10 px-8 py-12">
-          <ControlTowerHero owner={selectedRepository.owner} name={selectedRepository.name} />
-
-          <OverviewSection
-            repository={selectedRepository}
-            wins={healthSummary.wins}
-            focusAreas={healthSummary.focusAreas}
-            actionGroups={actionGroups}
-          />
-
-          {error && (
-            <div className="hud-panel hud-corner border border-[var(--hud-danger)]/40 bg-[var(--hud-danger)]/15 px-4 py-3 text-sm text-[var(--hud-text-bright)]">
-              {error}
-            </div>
-          )}
+        <main className="mx-auto max-w-[1600px] space-y-10 px-6 py-12 sm:px-8">
+          <div id="overview">
+            <OverviewSection
+              repository={selectedRepository}
+              wins={healthSummary.wins}
+              focusAreas={healthSummary.focusAreas}
+              actionGroups={actionGroups}
+            />
+          </div>
 
           {loading && prs.length === 0 ? (
             <div className="hud-panel hud-corner p-12 text-center text-sm text-[var(--hud-text-dim)]">
               Loading data for the control tower…
             </div>
           ) : (
-            <>
-              <section className="flex flex-col gap-6">
-                <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                  <div className="space-y-2">
-                    <h2 className="text-xl font-semibold text-[var(--hud-text-bright)]">Metrics</h2>
-                    <p className="max-w-3xl text-sm text-[var(--hud-text-dim)]">
-                      Track delivery health, flow efficiency, and how you compare to benchmarks.
-                    </p>
-                  </div>
-                  <div className="flex flex-col items-start gap-2 md:items-end">
-                    <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--hud-text-dim)]">
-                      Last sync: {latestSync ? formatRelativeDate(latestSync) : "No sync yet"}
+            <div className="space-y-12">
+              <div id="metrics" className="grid gap-6 xl:grid-cols-[minmax(0,4fr)_minmax(0,1fr)]">
+                <HealthOverviewSection summary={healthSummary} className="h-full xl:col-[auto]/[span_4]" />
+                <div className="flex flex-col gap-4 xl:col-[auto]/[span_1]">
+                  <div className="hud-panel hud-corner flex flex-col gap-3 rounded-lg border border-[var(--hud-border)] bg-[var(--hud-bg-elevated)]/60 px-4 py-4 transition-transform duration-200 hover:-translate-y-1">
+                    <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-[var(--hud-text-dim)]">
+                      Telemetry
                     </span>
+                    <span className="text-sm text-[var(--hud-text)]">
+                      Last sync {latestSync ? formatRelativeDate(latestSync) : "has not been triggered yet"}.
+                    </span>
+                    {error && (
+                      <span className="font-mono text-[11px] uppercase tracking-wider text-[var(--hud-warning)]">
+                        {error}
+                      </span>
+                    )}
                     <button
                       type="button"
                       onClick={handleSync}
                       disabled={loading}
-                      className="hud-glow border border-[var(--hud-accent)] bg-[var(--hud-bg-elevated)] px-4 py-2 font-mono text-xs uppercase tracking-wider text-[var(--hud-accent)] transition-all duration-200 hover:bg-[var(--hud-accent)] hover:text-[var(--hud-bg)] disabled:cursor-not-allowed disabled:opacity-40"
+                      className="mt-1 hud-glow border border-[var(--hud-accent)] bg-[var(--hud-bg-elevated)] px-4 py-2 font-mono text-xs uppercase tracking-[0.3em] text-[var(--hud-accent)] transition-all duration-200 hover:bg-[var(--hud-accent)] hover:text-[var(--hud-bg)] disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       {loading ? "Syncing…" : "Sync Data"}
                     </button>
                   </div>
-                </header>
-                <div className="flex flex-col gap-6 lg:flex-row lg:items-stretch">
-                  <div className="lg:w-[70%]">
-                    <HealthOverviewSection summary={healthSummary} className="h-full" />
-                  </div>
-                  <div className="lg:w-[30%]">
-                    <TeamScoreGrid summary={teamEfficiency} className="h-full" />
-                  </div>
+                  {teamEfficiency && <TeamScoreGrid summary={teamEfficiency} className="h-full" />}
                 </div>
+              </div>
+
+              <div id="benchmarks" className="space-y-6">
+                <section className="space-y-2">
+                  <h2 className="text-xl font-semibold text-[var(--hud-text-bright)]">Benchmark Intelligence</h2>
+                  <p className="max-w-3xl text-sm text-[var(--hud-text-dim)]">
+                    Inspect cycle time, review responsiveness, and benchmark positioning across the last 90 days.
+                  </p>
+                </section>
                 <div className="flex flex-col gap-8">
                   <WidgetizedWorkflowSection
                     sizeVsTimeData={sizeVsTimeData}
@@ -581,15 +579,15 @@ export default function ManagerDashboard() {
                     insights={comparisonInsights}
                   />
                 </div>
-              </section>
+              </div>
 
-              <section className="flex flex-col gap-6">
-                <header className="space-y-2">
+              <div id="blockers" className="space-y-6">
+                <section className="space-y-2">
                   <h2 className="text-xl font-semibold text-[var(--hud-text-bright)]">Blockers</h2>
                   <p className="max-w-3xl text-sm text-[var(--hud-text-dim)]">
                     Unblock the work and services putting delivery at risk right now.
                   </p>
-                </header>
+                </section>
                 <div className="flex flex-col gap-8">
                   <ActionQueueSection actionGroups={actionGroups} />
                   <WidgetizedErrorsSection
@@ -597,22 +595,22 @@ export default function ManagerDashboard() {
                     name={selectedRepository.name}
                   />
                 </div>
-              </section>
+              </div>
 
-              <section className="flex flex-col gap-6">
-                <header className="space-y-2">
-                  <h2 className="text-xl font-semibold text-[var(--hud-text-bright)]">Recommendations</h2>
+              <div id="team" className="space-y-6">
+                <section className="space-y-2">
+                  <h2 className="text-xl font-semibold text-[var(--hud-text-bright)]">Team Recommendations</h2>
                   <p className="max-w-3xl text-sm text-[var(--hud-text-dim)]">
                     Coaching cues and focus areas for your engineers based on recent activity.
                   </p>
-                </header>
+                </section>
                 <DeveloperInsightsSection
                   developers={sortedDevelopers}
                   selectedDeveloper={selectedDeveloper}
                   onSelectDeveloper={setSelectedDeveloper}
                 />
-              </section>
-            </>
+              </div>
+            </div>
           )}
         </main>
 
@@ -656,5 +654,19 @@ export default function ManagerDashboard() {
         />
       </div>
     </CopilotSidebar>
+  );
+}
+
+export default function ManagerDashboard() {
+  return (
+    <Suspense fallback={
+      <div className="relative min-h-screen bg-[var(--hud-bg)] text-[var(--hud-text)] flex items-center justify-center">
+        <div className="hud-panel hud-corner p-12 text-center text-sm text-[var(--hud-text-dim)]">
+          Loading dashboard…
+        </div>
+      </div>
+    }>
+      <ManagerDashboardContent />
+    </Suspense>
   );
 }

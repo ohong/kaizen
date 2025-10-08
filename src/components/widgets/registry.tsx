@@ -1,4 +1,4 @@
-import { type ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import {
   LineChart as ReLineChart,
   Line,
@@ -108,6 +108,8 @@ export function EnvironmentSpreadWidget({ byEnv }: EnvironmentSpreadWidgetProps)
 }
 
 export function RecentErrorsWidget({ recent, loading }: RecentErrorsWidgetProps) {
+  const [showAll, setShowAll] = useState(false);
+
   if (loading) {
     return <div className="flex h-32 items-center justify-center text-[var(--hud-text-dim)]">Loading...</div>;
   }
@@ -116,28 +118,51 @@ export function RecentErrorsWidget({ recent, loading }: RecentErrorsWidgetProps)
     return <div className="flex h-32 items-center justify-center text-[var(--hud-text-dim)]">No recent errors</div>;
   }
 
+  const visibleErrors = showAll ? recent : recent.slice(0, 5);
+  const remaining = Math.max(recent.length - visibleErrors.length, 0);
+
   return (
-    <ul className="mt-3 divide-y divide-[var(--hud-border)]">
-      {recent.map((e) => (
-        <li key={e.id} className="py-3">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="max-w-2xl truncate text-sm text-[var(--hud-text)]" title={e.message || "(no message)"}>
-                {e.message || "(no message)"}
-              </p>
-              <div className="mt-1 flex items-center gap-2">
-                <Badge tone="danger">{e.status || "error"}</Badge>
-                <Badge tone="info">{resolveServiceName(e.service, e.id)}</Badge>
-                {e.env && <Badge tone="neutral">{e.env}</Badge>}
+    <div className="mt-3 space-y-2">
+      <ul className="divide-y divide-[var(--hud-border)]">
+        {visibleErrors.map((e) => (
+          <li key={e.id} className="py-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="line-clamp-2 text-sm text-[var(--hud-text)]" title={e.message || "(no message)"}>
+                  {e.message || "(no message)"}
+                </p>
+                <div className="mt-1 flex items-center gap-2">
+                  <Badge tone="danger">{e.status || "error"}</Badge>
+                  <Badge tone="info">{resolveServiceName(e.service, e.id)}</Badge>
+                  {e.env && <Badge tone="neutral">{e.env}</Badge>}
+                </div>
               </div>
+              <time className="whitespace-nowrap text-xs text-[var(--hud-text-dim)]">
+                {new Date(e.occurred_at).toLocaleString()}
+              </time>
             </div>
-            <time className="whitespace-nowrap text-xs text-[var(--hud-text-dim)]">
-              {new Date(e.occurred_at).toLocaleString()}
-            </time>
-          </div>
-        </li>
-      ))}
-    </ul>
+          </li>
+        ))}
+      </ul>
+
+      {remaining > 0 ? (
+        <button
+          type="button"
+          onClick={() => setShowAll(true)}
+          className="w-full rounded-lg border border-[var(--hud-border)] bg-[var(--hud-bg-elevated)] px-3 py-2 text-center font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--hud-accent)] transition-all duration-200 hover:border-[var(--hud-accent)] hover:bg-[var(--hud-accent)]/10"
+        >
+          Show {remaining} more error{remaining === 1 ? "" : "s"}
+        </button>
+      ) : showAll ? (
+        <button
+          type="button"
+          onClick={() => setShowAll(false)}
+          className="w-full rounded-lg border border-[var(--hud-border)] bg-[var(--hud-bg-elevated)] px-3 py-2 text-center font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--hud-accent)] transition-all duration-200 hover:border-[var(--hud-accent)] hover:bg-[var(--hud-accent)]/10"
+        >
+          Show fewer errors
+        </button>
+      ) : null}
+    </div>
   );
 }
 

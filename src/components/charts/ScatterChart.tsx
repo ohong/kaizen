@@ -44,7 +44,7 @@ export function ScatterChartViz({
     );
   }
 
-  const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ color?: string; name?: string; value?: number; payload?: ScatterDataPoint }> }) => {
+  const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ color?: string; name?: string; value?: number; payload?: ScatterPoint }> }) => {
     if (!active || !payload || payload.length === 0) return null;
 
     const firstItem = payload[0];
