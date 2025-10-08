@@ -122,15 +122,6 @@ export function UserMenu() {
       )}
       <div className="hidden flex-col leading-tight sm:flex">
         <span className="text-xs text-[var(--hud-text)] max-w-[220px] truncate">{user.fullName || user.email}</span>
-        {!user.githubConnected && (
-          <button
-            type="button"
-            onClick={handleGithubSignin}
-            className="self-start text-[10px] uppercase tracking-wider text-[var(--hud-accent)] hover:underline"
-          >
-            Connect GitHub
-          </button>
-        )}
         <button
           type="button"
           onClick={handleSignout}

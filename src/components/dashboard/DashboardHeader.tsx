@@ -12,8 +12,6 @@ interface DashboardHeaderProps {
   owner: string;
   name: string;
   repositories: RepositoryOption[];
-  loading: boolean;
-  onSync: () => void;
   onOpenAddRepository: () => void;
   onOpenReport: () => void;
   onNavigateToSurvey: () => void;
@@ -25,8 +23,6 @@ export function DashboardHeader({
   owner,
   name,
   repositories,
-  loading,
-  onSync,
   onOpenAddRepository,
   onOpenReport,
   onNavigateToSurvey,
@@ -61,14 +57,6 @@ export function DashboardHeader({
             onChange={onRepositoryChange}
             onAddRepository={onOpenAddRepository}
           />
-          <button
-            type="button"
-            onClick={onSync}
-            className="hud-glow border border-[var(--hud-accent)] bg-[var(--hud-bg-elevated)] px-4 py-2 font-mono text-xs uppercase tracking-wider text-[var(--hud-accent)] transition-all duration-200 hover:bg-[var(--hud-accent)] hover:text-[var(--hud-bg)] disabled:cursor-not-allowed disabled:opacity-40"
-            disabled={loading}
-          >
-            {loading ? "Syncing…" : "Sync Data"}
-          </button>
           <button
             type="button"
             onClick={onNavigateToSurvey}

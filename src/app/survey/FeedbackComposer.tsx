@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from "react";
-
 interface FeedbackComposerProps {
-  defaultSubject: string;
-  defaultBody: string;
+  subject: string;
+  body: string;
+  onChange: (data: { subject?: string; body?: string }) => void;
 }
 
 const aggregateMetrics = [
@@ -59,10 +58,7 @@ const spotlightQuotes = [
   },
 ];
 
-export function FeedbackComposer({ defaultSubject, defaultBody }: FeedbackComposerProps) {
-  const [subject, setSubject] = useState(defaultSubject);
-  const [body, setBody] = useState(defaultBody);
-
+export function FeedbackComposer({ subject, body, onChange }: FeedbackComposerProps) {
   return (
     <div className="mx-auto flex max-w-[1400px] flex-col gap-8 px-8 pb-16">
       <section className="hud-panel hud-corner hud-scanline border border-[var(--hud-border)] bg-[var(--hud-bg)]/80 p-8">
@@ -114,7 +110,7 @@ export function FeedbackComposer({ defaultSubject, defaultBody }: FeedbackCompos
             <input
               type="text"
               value={subject}
-              onChange={(event) => setSubject(event.target.value)}
+              onChange={(event) => onChange({ subject: event.target.value })}
               className="mt-2 w-full rounded border border-[var(--hud-border)] bg-[var(--hud-bg-elevated)] px-3 py-2 font-mono text-sm text-[var(--hud-text-bright)] focus:border-[var(--hud-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--hud-accent)]/40"
             />
           </label>
@@ -123,7 +119,7 @@ export function FeedbackComposer({ defaultSubject, defaultBody }: FeedbackCompos
             Body
             <textarea
               value={body}
-              onChange={(event) => setBody(event.target.value)}
+              onChange={(event) => onChange({ body: event.target.value })}
               rows={12}
               className="mt-2 w-full rounded border border-[var(--hud-border)] bg-[var(--hud-bg-elevated)] px-3 py-3 font-mono text-sm leading-6 text-[var(--hud-text-bright)] focus:border-[var(--hud-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--hud-accent)]/40"
             />

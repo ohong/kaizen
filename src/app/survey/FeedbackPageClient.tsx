@@ -34,7 +34,6 @@ const AVAILABLE_EMAILS = [
 
 interface SurveyData {
   subject: string;
-  title: string;
   message: string;
 }
 
@@ -61,7 +60,6 @@ export default function FeedbackPageClient({ defaultSurveyBody }: FeedbackPageCl
 
   const [surveyData, setSurveyData] = useState<SurveyData>({
     subject: "Developer Experience Survey - Your Feedback Matters",
-    title: "Developer Experience Survey",
     message: defaultSurveyBody,
   });
 
@@ -105,7 +103,10 @@ export default function FeedbackPageClient({ defaultSurveyBody }: FeedbackPageCl
         },
         body: JSON.stringify({
           recipients: selectedEmails,
-          surveyData,
+          surveyData: {
+            ...surveyData,
+            title: "Developer Experience Survey",
+          },
         }),
       });
 
@@ -209,62 +210,20 @@ export default function FeedbackPageClient({ defaultSurveyBody }: FeedbackPageCl
             <FeedbackInsights />
           ) : (
             <FeedbackComposer
-              defaultSubject="Developer Experience Pulse Check"
-              defaultBody={defaultSurveyBody}
+              subject={surveyData.subject}
+              body={surveyData.message}
+              onChange={({ subject, body }) =>
+                setSurveyData((prev) => ({
+                  subject: subject ?? prev.subject,
+                  message: body ?? prev.message,
+                }))
+              }
             />
           )}
         </div>
 
         {!showInsights && (
           <>
-            {/* Survey Configuration */}
-            <section className="hud-panel hud-corner mb-6 p-6">
-              <h2 className="mb-4 text-xl font-semibold text-[var(--hud-text-bright)]">
-                Survey Content
-              </h2>
-              <div className="space-y-4">
-                <div>
-                  <label className="mb-2 block font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
-                    Email Subject
-                  </label>
-                  <input
-                    type="text"
-                    value={surveyData.subject}
-                    onChange={(e) =>
-                      setSurveyData({ ...surveyData, subject: e.target.value })
-                    }
-                    className="w-full border border-[var(--hud-border)] bg-[var(--hud-bg)] px-4 py-3 text-sm text-[var(--hud-text)] transition-all duration-200 focus:border-[var(--hud-accent)] focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="mb-2 block font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
-                    Survey Title
-                  </label>
-                  <input
-                    type="text"
-                    value={surveyData.title}
-                    onChange={(e) =>
-                      setSurveyData({ ...surveyData, title: e.target.value })
-                    }
-                    className="w-full border border-[var(--hud-border)] bg-[var(--hud-bg)] px-4 py-3 text-sm text-[var(--hud-text)] transition-all duration-200 focus:border-[var(--hud-accent)] focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="mb-2 block font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
-                    Introduction Message
-                  </label>
-                  <textarea
-                    value={surveyData.message}
-                    onChange={(e) =>
-                      setSurveyData({ ...surveyData, message: e.target.value })
-                    }
-                    rows={4}
-                    className="w-full border border-[var(--hud-border)] bg-[var(--hud-bg)] px-4 py-3 text-sm text-[var(--hud-text)] transition-all duration-200 focus:border-[var(--hud-accent)] focus:outline-none"
-                  />
-                </div>
-              </div>
-            </section>
-
             {/* Recipients Section */}
             <section className="hud-panel hud-corner mb-6 p-6">
               <div className="mb-4 flex items-center justify-between">

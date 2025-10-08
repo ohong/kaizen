@@ -10,6 +10,7 @@ import { getAvailableRepositories, parseRepositoryFromUrl, buildRepositoryUrl } 
 import type { Database } from "@/lib/types/database";
 import type { RepositoryOption } from "@/lib/repository-utils";
 import { Datadog } from "@/components/icons/Datadog";
+import { GitHubIcon } from "@/components/icons/GitHub";
 import { Linear } from "@/components/icons/Linear";
 
 type Integration = Database['public']['Tables']['integrations']['Row'];
@@ -35,6 +36,13 @@ interface DatadogSyncResponse {
   error?: string;
   summary?: SyncSummary;
 }
+
+type MinimalSession = {
+  provider_token?: string | null;
+  user?: {
+    user_metadata?: Record<string, unknown>;
+  };
+} | null;
 
 export default function IntegrationsPage() {
   const searchParams = useSearchParams();
@@ -71,6 +79,24 @@ export default function IntegrationsPage() {
     limitPerPage: 100,
     maxPages: 10,
   });
+  const [githubStatusLoading, setGithubStatusLoading] = useState(true);
+  const [githubConnected, setGithubConnected] = useState(false);
+  const [githubUsername, setGithubUsername] = useState<string | null>(null);
+
+  const updateGithubState = useCallback((session: MinimalSession) => {
+    setGithubConnected(Boolean(session?.provider_token));
+
+    const metadata = (session?.user?.user_metadata ?? {}) as Record<string, unknown>;
+    const username =
+      (metadata.user_name as string | undefined) ||
+      (metadata.preferred_username as string | undefined) ||
+      (metadata.name as string | undefined) ||
+      (metadata.login as string | undefined) ||
+      null;
+
+    setGithubUsername(username);
+    setGithubStatusLoading(false);
+  }, []);
 
   const getRepositoryId = useCallback(async (repo: { owner: string; name: string }): Promise<string | null> => {
     const { data } = await supabase
@@ -119,6 +145,33 @@ export default function IntegrationsPage() {
   useEffect(() => {
     void loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        if (!mounted) return;
+        updateGithubState(data.session);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setGithubConnected(false);
+        setGithubUsername(null);
+        setGithubStatusLoading(false);
+      });
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted) return;
+      updateGithubState(session);
+    });
+
+    return () => {
+      mounted = false;
+      authListener?.subscription.unsubscribe();
+    };
+  }, [updateGithubState]);
 
   const handleRepositoryChange = (owner: string, name: string) => {
     const newUrl = buildRepositoryUrl(owner, name, '/integrations');
@@ -282,6 +335,21 @@ export default function IntegrationsPage() {
     }
   };
 
+  const handleGithubConnect = useCallback(() => {
+    if (githubStatusLoading) {
+      return;
+    }
+
+    const redirectTo = `${window.location.origin}/auth/callback`;
+    void supabase.auth.signInWithOAuth({
+      provider: 'github',
+      options: {
+        redirectTo,
+        scopes: 'read:user repo',
+      },
+    });
+  }, [githubStatusLoading]);
+
   const getSelectedRepositoryName = () => {
     // Since we're filtering by repository, all integrations belong to the selected repository
     return `${selectedRepository.owner}/${selectedRepository.name}`;
@@ -402,41 +470,65 @@ export default function IntegrationsPage() {
         <section className="hud-panel hud-corner mb-8 p-6">
           <h2 className="mb-4 text-xl font-semibold text-[var(--hud-text-bright)]">Add New Integration</h2>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             <button
-              onClick={() => setShowDatadogForm(true)}
-              className="p-4 border-2 border-dashed border-[var(--hud-border)] rounded-lg hover:border-[var(--hud-accent)]/60 hover:bg-[var(--hud-accent)]/5 transition-all duration-200"
+              type="button"
+              onClick={handleGithubConnect}
+              disabled={githubStatusLoading}
+              className={`group flex flex-col items-center gap-3 rounded-lg border-2 p-6 text-center transition-all duration-200 ${
+                githubConnected
+                  ? 'border-[var(--hud-accent)] bg-[var(--hud-accent)]/10 hover:border-[var(--hud-accent)] hover:bg-[var(--hud-accent)]/15'
+                  : 'border-dashed border-[var(--hud-border)] hover:border-[var(--hud-accent)]/60 hover:bg-[var(--hud-accent)]/10'
+              } ${githubStatusLoading ? 'cursor-not-allowed opacity-60' : 'hover:-translate-y-1 hover:shadow-[0_10px_30px_rgba(0,0,0,0.35)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--hud-accent)]'}`}
             >
-              <div className="text-center">
-                <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-white">
-                  <Datadog className="h-9 w-9" />
-                </div>
-                <h3 className="mt-2 text-sm font-medium text-[var(--hud-text-bright)]">Datadog</h3>
-                <p className="mt-1 text-sm text-[var(--hud-text-dim)]">Monitor errors and performance</p>
+              <div className="flex h-14 w-14 items-center justify-center rounded-full border border-[var(--hud-border)] bg-white shadow-sm transition-transform duration-200 group-hover:scale-105">
+                <GitHubIcon className="h-7 w-7 text-black" />
               </div>
+              <div className="space-y-1">
+                <h3 className="text-sm font-semibold text-[var(--hud-text-bright)]">GitHub</h3>
+                <p className="text-sm text-[var(--hud-text-dim)]">
+                  Commit &amp; pull request data.
+                </p>
+              </div>
+              <span
+                className={`inline-flex items-center justify-center gap-1 rounded px-3 py-1 font-mono text-[10px] uppercase tracking-widest ${
+                  githubConnected
+                    ? 'border border-[var(--hud-accent)]/40 bg-[var(--hud-accent)]/10 text-[var(--hud-accent)]'
+                    : 'border border-[var(--hud-border)]/70 bg-[var(--hud-bg)] text-[var(--hud-text-dim)] group-hover:border-[var(--hud-accent)]/60 group-hover:text-[var(--hud-text)]'
+                }`}
+              >
+                {githubStatusLoading
+                  ? 'Checking...'
+                  : githubConnected
+                    ? `Connected${githubUsername ? ` • ${githubUsername}` : ''}`
+                    : 'Connect GitHub'}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowDatadogForm(true)}
+              className="group flex flex-col items-center gap-3 rounded-lg border-2 border-dashed border-[var(--hud-border)] p-6 text-center transition-all duration-200 hover:-translate-y-1 hover:border-[var(--hud-accent)]/60 hover:bg-[var(--hud-accent)]/10 hover:shadow-[0_10px_30px_rgba(0,0,0,0.35)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--hud-accent)]"
+            >
+              <div className="flex h-14 w-14 items-center justify-center rounded-full border border-[var(--hud-border)] bg-white shadow-sm transition-transform duration-200 group-hover:scale-105">
+                <Datadog className="h-8 w-8" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-sm font-semibold text-[var(--hud-text-bright)]">Datadog</h3>
+                <p className="text-sm text-[var(--hud-text-dim)]">Monitor errors and performance.</p>
+              </div>
+              <span className="inline-flex items-center justify-center gap-1 rounded border border-[var(--hud-border)]/70 bg-[var(--hud-bg)] px-3 py-1 font-mono text-[10px] uppercase tracking-widest text-[var(--hud-text-dim)] group-hover:border-[var(--hud-accent)]/60 group-hover:text-[var(--hud-text)]">
+                Configure
+              </span>
             </button>
 
             {/* Linear placeholder */}
-            <div className="p-4 border-2 border-dashed border-[var(--hud-border)]/50 rounded-lg bg-[var(--hud-bg)] opacity-60">
-              <div className="text-center">
-                <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-white/80">
-                  <Linear className="h-8 w-8" />
-                </div>
-                <h3 className="mt-2 text-sm font-medium text-[var(--hud-text-dim)]">Linear</h3>
-                <p className="mt-1 text-sm text-[var(--hud-text-dim)]">Coming soon</p>
+            <div className="flex flex-col items-center gap-3 rounded-lg border-2 border-dashed border-[var(--hud-border)]/50 bg-[var(--hud-bg)] p-6 text-center opacity-60">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full border border-[var(--hud-border)] bg-white/80 shadow-sm">
+                <Linear className="h-8 w-8" />
               </div>
-            </div>
-
-            {/* Placeholder for future integrations */}
-            <div className="p-4 border-2 border-dashed border-[var(--hud-border)]/40 rounded-lg opacity-40">
-              <div className="text-center">
-                <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-[var(--hud-bg)]">
-                  <svg className="h-6 w-6 text-[var(--hud-text-dim)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                  </svg>
-                </div>
-                <h3 className="mt-2 text-sm font-medium text-[var(--hud-text-dim)]">More integrations</h3>
-                <p className="mt-1 text-sm text-[var(--hud-text-dim)]">Coming soon</p>
+              <div className="space-y-1">
+                <h3 className="text-sm font-semibold text-[var(--hud-text-dim)]">Linear</h3>
+                <p className="text-sm text-[var(--hud-text-dim)]">Coming soon</p>
               </div>
             </div>
           </div>

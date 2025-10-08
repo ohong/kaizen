@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { CopilotSidebar } from "@copilotkit/react-ui";
+import { CopilotSidebar, useChatContext } from "@copilotkit/react-ui";
 
 import {
   ActionQueueSection,
@@ -42,6 +42,8 @@ import { fetchErrorsSummary, type ErrorsSummary } from "@/lib/errors";
 import { buildRepositoryUrl, parseRepositoryFromUrl } from "@/lib/repository-utils";
 import { supabase } from "@/lib/supabase";
 import { fetchUserRepositories, type GithubRepositoryOption } from "@/lib/github";
+import { formatRelativeDate } from "@/lib/format";
+import { isMacOS } from "@copilotkit/shared";
 
 const AVAILABLE_EMAILS = [
   "javokhir@raisedash.com",
@@ -498,9 +500,21 @@ export default function ManagerDashboard() {
     <CopilotSidebar
       clickOutsideToClose={false}
       defaultOpen={true}
+      shortcut="k"
+      Button={SidebarToggleButton}
       labels={{
-        title: "Kaizen Copilot",
-        initial: "I can benchmark repos, compare developer health, and outline improvement plays. Ask for suggestions or type / to see quick prompts."
+        title: "Kaizen AI",
+        initial: `Hi, I'm Kaizen! I can help you understand your team's productivity patterns and identify high-leverage improvements.
+
+**What I can do:**
+- **Analyze any repository**: Pull metrics from public or private GitHub projects
+- **Benchmark against peers**: Compare your metrics to industry standards (DORA, SPACE, DX Core 4)
+- **Send exec reports**: Email charts and analysis to leadership or team leads
+
+**Start by asking:**
+- "How do our deployment metrics compare to peers?"
+- "What's blocking our velocity?"
+- "Did [tool/process change] actually help?"`
       }}
     >
       <div className="relative min-h-screen bg-[var(--hud-bg)] text-[var(--hud-text)]">
@@ -513,8 +527,6 @@ export default function ManagerDashboard() {
           owner={selectedRepository.owner}
           name={selectedRepository.name}
           repositories={repositories}
-          loading={loading}
-          onSync={handleSync}
           onOpenAddRepository={handleOpenAddRepoModal}
           onOpenReport={handleOpenReportModal}
           onNavigateToSurvey={handleNavigateToSurvey}
@@ -551,11 +563,26 @@ export default function ManagerDashboard() {
           ) : (
             <>
               <section className="flex flex-col gap-6">
-                <header className="space-y-2">
-                  <h2 className="text-xl font-semibold text-[var(--hud-text-bright)]">Metrics</h2>
-                  <p className="max-w-3xl text-sm text-[var(--hud-text-dim)]">
-                    Track delivery health, flow efficiency, and how you compare to benchmarks.
-                  </p>
+                <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                  <div className="space-y-2">
+                    <h2 className="text-xl font-semibold text-[var(--hud-text-bright)]">Metrics</h2>
+                    <p className="max-w-3xl text-sm text-[var(--hud-text-dim)]">
+                      Track delivery health, flow efficiency, and how you compare to benchmarks.
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-start gap-2 md:items-end">
+                    <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--hud-text-dim)]">
+                      Last sync: {latestSync ? formatRelativeDate(latestSync) : "No sync yet"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleSync}
+                      disabled={loading}
+                      className="hud-glow border border-[var(--hud-accent)] bg-[var(--hud-bg-elevated)] px-4 py-2 font-mono text-xs uppercase tracking-wider text-[var(--hud-accent)] transition-all duration-200 hover:bg-[var(--hud-accent)] hover:text-[var(--hud-bg)] disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      {loading ? "Syncing…" : "Sync Data"}
+                    </button>
+                  </div>
                 </header>
                 <div className="flex flex-col gap-6 lg:flex-row lg:items-stretch">
                   <div className="lg:w-[70%]">
@@ -652,5 +679,44 @@ export default function ManagerDashboard() {
         />
       </div>
     </CopilotSidebar>
+  );
+}
+
+function SidebarToggleButton() {
+  const { open, setOpen, icons } = useChatContext();
+  const [hovered, setHovered] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setHovered(false);
+    }
+  }, [open]);
+
+  const shortcutHint = isMacOS() ? "⌘K" : "Ctrl+K";
+  const tooltipText = open ? "Close Copilot" : `Open Copilot (${shortcutHint})`;
+  const showTooltip = !open && hovered;
+
+  return (
+    <div
+      className="relative"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        aria-label={tooltipText}
+        title={tooltipText}
+        className={`copilotKitButton ${open ? "open" : ""}`}
+      >
+        <div className="copilotKitButtonIcon copilotKitButtonIconOpen">{icons.openIcon}</div>
+        <div className="copilotKitButtonIcon copilotKitButtonIconClose">{icons.closeIcon}</div>
+      </button>
+      {showTooltip && (
+        <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 rounded-md border border-[var(--hud-border)] bg-[var(--hud-bg-elevated)] px-3 py-1 font-mono text-[10px] uppercase tracking-wider text-[var(--hud-text-dim)] shadow-lg">
+          {shortcutHint} to open
+        </div>
+      )}
+    </div>
   );
 }
