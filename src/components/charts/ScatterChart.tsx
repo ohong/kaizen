@@ -10,7 +10,6 @@ import {
   ResponsiveContainer,
   ZAxis,
 } from "recharts";
-import type { TooltipProps } from "recharts";
 
 interface ScatterPoint {
   x: number;
@@ -45,7 +44,7 @@ export function ScatterChartViz({
     );
   }
 
-  const CustomTooltip = ({ active, payload }: TooltipProps<number, string>) => {
+  const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ color?: string; name?: string; value?: number; payload?: ScatterDataPoint }> }) => {
     if (!active || !payload || payload.length === 0) return null;
 
     const firstItem = payload[0];

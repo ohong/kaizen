@@ -10,7 +10,6 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
-import type { TooltipProps } from "recharts";
 
 interface DistributionData {
   category: string;
@@ -50,7 +49,7 @@ export function DistributionChart({
     );
   }
 
-  const CustomTooltip = ({ active, payload }: TooltipProps<number, string>) => {
+  const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ color?: string; name?: string; value?: number; payload?: DistributionData }> }) => {
     if (!active || !payload || payload.length === 0) return null;
 
     const firstItem = payload[0];

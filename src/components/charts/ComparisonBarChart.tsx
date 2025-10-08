@@ -10,7 +10,6 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import type { TooltipProps } from "recharts";
 
 interface ComparisonData {
   name: string;
@@ -42,7 +41,7 @@ export function ComparisonBarChart({
     );
   }
 
-  const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>) => {
+  const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ color?: string; name?: string; value?: number }>; label?: string }) => {
     if (!active || !payload || payload.length === 0) return null;
 
     return (

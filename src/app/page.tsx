@@ -692,7 +692,7 @@ function SidebarToggleButton() {
     }
   }, [open]);
 
-  const shortcutHint = isMacOS() ? "⌘K" : "Ctrl+K";
+  const shortcutHint = typeof window !== 'undefined' && isMacOS() ? "⌘K" : "Ctrl+K";
   const tooltipText = open ? "Close Copilot" : `Open Copilot (${shortcutHint})`;
   const showTooltip = !open && hovered;
 

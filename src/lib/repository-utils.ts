@@ -29,7 +29,7 @@ export async function getAvailableRepositories(): Promise<RepositoryOption[]> {
     const { data: repos, error: repoError } = await supabase
       .from('repositories')
       .select('*')
-      .order('owner', { ascending: true }) as { data: { owner: string; name: string; description: string | null; is_benchmark: boolean }[] | null; error: any };
+      .order('owner', { ascending: true }) as { data: { owner: string; name: string; description: string | null; is_benchmark: boolean }[] | null; error: Error | null };
 
     if (repoError) throw repoError;
 
@@ -37,7 +37,7 @@ export async function getAvailableRepositories(): Promise<RepositoryOption[]> {
     const { data: prCounts, error: countError } = await supabase
       .from('pull_requests')
       .select('repository_owner, repository_name')
-      .order('repository_owner') as { data: { repository_owner: string; repository_name: string }[] | null; error: any };
+      .order('repository_owner') as { data: { repository_owner: string; repository_name: string }[] | null; error: Error | null };
 
     if (countError) throw countError;
 

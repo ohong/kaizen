@@ -10,7 +10,6 @@ import {
   Tooltip,
   Legend,
 } from "recharts";
-import type { TooltipProps } from "recharts";
 
 interface RadarDataPoint {
   dimension: string;
@@ -39,7 +38,7 @@ export function RadarChartViz({
     );
   }
 
-  const CustomTooltip = ({ active, payload }: TooltipProps<number, string>) => {
+  const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ color?: string; name?: string; value?: number; payload?: RadarDataPoint }> }) => {
     if (!active || !payload || payload.length === 0) return null;
 
     const firstItem = payload[0];
