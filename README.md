@@ -28,6 +28,11 @@ Each contributor gets a radar chart across 9 dimensions:
 - **Availability** - Consistent contribution patterns
 
 ### AI-Powered Insights
+
+**Powered by [NVIDIA NIM](https://build.nvidia.com/)** (NVIDIA Inference Microservices):
+- **Chat interface**: `openai/gpt-oss-20b` - Smaller, faster model for interactive queries
+- **Executive reports**: `openai/gpt-oss-120b` - Larger model for comprehensive analysis
+
 The system analyzes your metrics and generates:
 - **Diagnosis** - Where your team underperforms relative to benchmarks
 - **Theory of Improvement** - Research-backed practices that correlate with better outcomes
@@ -71,10 +76,12 @@ Kaizen integrates with:
 ```bash
 npm install
 cp .env.example .env.local
-# Add API keys for GitHub, Linear, Datadog, Resend, Supabase
-# Optional: set AGENT_MODEL_NAME to override the default NVIDIA model (meta/llama-3.1-70b-instruct)
+# Add API keys for GitHub, Linear, Datadog, Resend, Supabase, NVIDIA
+# Optional: set AGENT_MODEL_NAME to override the default chat model (openai/gpt-oss-20b)
 npm run dev
 ```
+
+Get your free NVIDIA API key at [https://build.nvidia.com/](https://build.nvidia.com/)
 
 Visit `http://localhost:3000` and trigger your first sync.
 

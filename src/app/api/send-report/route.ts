@@ -61,19 +61,22 @@ interface NvidiaMessagePart {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { recipients, payload } = body as { recipients: string[]; payload: ReportPayload };
+    const { recipients, payload } = body as {
+      recipients: string[];
+      payload: ReportPayload;
+    };
 
     if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {
       return NextResponse.json(
         { error: "Recipients array is required and must not be empty" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (!process.env.RESEND_API_KEY) {
       return NextResponse.json(
         { error: "RESEND_API_KEY is not configured" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -96,16 +99,19 @@ export async function POST(request: NextRequest) {
           throw error;
         }
         return { email, messageId: data?.id };
-      })
+      }),
     );
 
     const successful = results
       .filter((r) => r.status === "fulfilled")
-      .map((r) => r.status === "fulfilled" ? r.value : null)
+      .map((r) => (r.status === "fulfilled" ? r.value : null))
       .filter((v) => v !== null);
     const failed = results
       .filter((r) => r.status === "rejected")
-      .map((r, idx) => ({ email: recipients[idx], error: r.status === "rejected" ? r.reason : "Unknown error" }));
+      .map((r, idx) => ({
+        email: recipients[idx],
+        error: r.status === "rejected" ? r.reason : "Unknown error",
+      }));
 
     return NextResponse.json({
       success: true,
@@ -118,8 +124,11 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Error sending exec reports:", error);
     return NextResponse.json(
-      { error: "Failed to send exec reports", details: error instanceof Error ? error.message : "Unknown error" },
-      { status: 500 }
+      {
+        error: "Failed to send exec reports",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 },
     );
   }
 }
@@ -127,12 +136,16 @@ export async function POST(request: NextRequest) {
 function buildSubject(payload: ReportPayload): string {
   const repoOwner = payload?.repository?.owner ?? "";
   const repoName = payload?.repository?.name ?? "";
-  const repo = repoOwner && repoName ? `${repoOwner}/${repoName}` : "Repository";
+  const repo =
+    repoOwner && repoName ? `${repoOwner}/${repoName}` : "Repository";
   const score = payload?.health?.healthScore ?? "—";
   return `Kaizen Exec Report • ${repo} • Health ${score}`;
 }
 
-function generateReportEmailHTML(payload: ReportPayload, llmSummary?: string): string {
+function generateReportEmailHTML(
+  payload: ReportPayload,
+  llmSummary?: string,
+): string {
   const repoOwner = payload?.repository?.owner ?? "";
   const repoName = payload?.repository?.name ?? "";
   const healthScore = payload?.health?.healthScore ?? "—";
@@ -147,7 +160,8 @@ function generateReportEmailHTML(payload: ReportPayload, llmSummary?: string): s
   const errorsTotal = payload?.errors?.total ?? 0;
   const topMessages: ReportErrorSummary[] = payload?.errors?.topMessages ?? [];
 
-  const fmt = (value: unknown) => (value === null || value === undefined ? "—" : String(value));
+  const fmt = (value: unknown) =>
+    value === null || value === undefined ? "—" : String(value);
   const summaryHtml = llmSummary ? formatSummaryHtml(llmSummary) : null;
 
   return `
@@ -198,9 +212,9 @@ function generateReportEmailHTML(payload: ReportPayload, llmSummary?: string): s
       <div class="section">
         <div class="grid">
           <div class="card"><div class="muted">Throughput / week</div><div>${fmt(throughput)}</div></div>
-          <div class="card"><div class="muted">Merge rate</div><div>${mergeRate !== null ? `${mergeRate.toFixed(1)}%` : '—'}</div></div>
-          <div class="card"><div class="muted">Avg merge time</div><div>${avgMerge !== null ? `${avgMerge.toFixed(1)}h` : '—'}</div></div>
-          <div class="card"><div class="muted">Avg first review</div><div>${avgFirstReview !== null ? `${avgFirstReview.toFixed(1)}h` : '—'}</div></div>
+          <div class="card"><div class="muted">Merge rate</div><div>${mergeRate !== null ? `${mergeRate.toFixed(1)}%` : "—"}</div></div>
+          <div class="card"><div class="muted">Avg merge time</div><div>${avgMerge !== null ? `${avgMerge.toFixed(1)}h` : "—"}</div></div>
+          <div class="card"><div class="muted">Avg first review</div><div>${avgFirstReview !== null ? `${avgFirstReview.toFixed(1)}h` : "—"}</div></div>
           <div class="card"><div class="muted">Open PRs</div><div>${fmt(openPrs)}</div></div>
           <div class="card"><div class="muted">Stale PRs (>3d)</div><div>${fmt(stalePrs)}</div></div>
         </div>
@@ -210,32 +224,36 @@ function generateReportEmailHTML(payload: ReportPayload, llmSummary?: string): s
         <div class="muted">Ops Signals (7d)</div>
         <div style="margin-top:6px">
           <span class="pill">Total ${fmt(errorsTotal)}</span>
-          ${topMessages.map((m) => `<span class="pill">${escapeHtml(m.message).slice(0,60)} (${m.count})</span>`).join('')}
+          ${topMessages.map((m) => `<span class="pill">${escapeHtml(m.message).slice(0, 60)} (${m.count})</span>`).join("")}
         </div>
       </div>
 
       <div class="section">
         <div class="muted">Top Developers</div>
         <ol>
-          ${Array.isArray(payload?.developers?.top) ? payload.developers.top.map((d) => `<li>${escapeHtml(d.author)} — ${d.overallScore}</li>`).join('') : ''}
+          ${Array.isArray(payload?.developers?.top) ? payload.developers.top.map((d) => `<li>${escapeHtml(d.author)} — ${d.overallScore}</li>`).join("") : ""}
         </ol>
       </div>
 
       <div class="section">
         <div class="muted">Needs Attention</div>
         <ol>
-          ${Array.isArray(payload?.developers?.needsAttention) ? payload.developers.needsAttention.map((d) => `<li>${escapeHtml(d.author)} — ${d.overallScore}</li>`).join('') : ''}
+          ${Array.isArray(payload?.developers?.needsAttention) ? payload.developers.needsAttention.map((d) => `<li>${escapeHtml(d.author)} — ${d.overallScore}</li>`).join("") : ""}
         </ol>
       </div>
 
-      ${summaryHtml ? `
+      ${
+        summaryHtml
+          ? `
       <div class="section">
         <div class="muted">LLM Summary</div>
         <div class="card" style="margin-top:8px">
           ${summaryHtml}
         </div>
       </div>
-      ` : ''}
+      `
+          : ""
+      }
     </div>
   </body>
   </html>
@@ -254,12 +272,12 @@ function escapeHtml(str: string): string {
 function formatSummaryHtml(summary: string): string {
   // Escape, then convert newlines to <br> and simple bullets
   const escaped = escapeHtml(summary);
-  return escaped
-    .replace(/\n\n/g, '<br/><br/>')
-    .replace(/\n/g, '<br/>');
+  return escaped.replace(/\n\n/g, "<br/><br/>").replace(/\n/g, "<br/>");
 }
 
-async function summarizeWithNvidia(payload: ReportPayload): Promise<string | null> {
+async function summarizeWithNvidia(
+  payload: ReportPayload,
+): Promise<string | null> {
   try {
     if (!process.env.NVIDIA_API_KEY) {
       console.warn("NVIDIA_API_KEY not set; skipping LLM summary");
@@ -269,16 +287,24 @@ async function summarizeWithNvidia(payload: ReportPayload): Promise<string | nul
     // Load system prompt from prompts/sys-prompt.md
     let systemPrompt = "";
     try {
-      const promptPath = path.resolve(process.cwd(), "prompts", "sys-prompt.md");
+      const promptPath = path.resolve(
+        process.cwd(),
+        "prompts",
+        "sys-prompt.md",
+      );
       systemPrompt = await fs.readFile(promptPath, "utf8");
     } catch (readError: unknown) {
       if (readError instanceof Error) {
-        console.warn("Falling back to default summary prompt:", readError.message);
+        console.warn(
+          "Falling back to default summary prompt:",
+          readError.message,
+        );
       }
-      systemPrompt = "You are a Kaizen engineering advisor. Summarize concisely with actionable next steps.";
+      systemPrompt =
+        "You are a Kaizen engineering advisor. Summarize concisely with actionable next steps.";
     }
 
-    const model = process.env.NVIDIA_SUMMARY_MODEL || "meta/llama-3.1-70b-instruct";
+    const model = process.env.NVIDIA_SUMMARY_MODEL || "openai/gpt-oss-120b";
 
     // Trim payload down a bit for the model
     const condensed: ReportPayload = {
@@ -287,10 +313,12 @@ async function summarizeWithNvidia(payload: ReportPayload): Promise<string | nul
       health: payload?.health,
       actionQueue: payload?.actionQueue,
       developers: payload?.developers,
-      errors: payload?.errors ? {
-        total: payload.errors.total,
-        topMessages: payload.errors.topMessages,
-      } : undefined,
+      errors: payload?.errors
+        ? {
+            total: payload.errors.total,
+            topMessages: payload.errors.topMessages,
+          }
+        : undefined,
       chartsSummary: payload?.chartsSummary,
       benchmarks: payload?.benchmarks,
       distributions: payload?.distributions,
@@ -305,23 +333,26 @@ async function summarizeWithNvidia(payload: ReportPayload): Promise<string | nul
     ].join(" \n");
 
     const userContent = `${instructions}\n\nDATA (JSON):\n${JSON.stringify(condensed)}`;
-    
-    const res = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.NVIDIA_API_KEY}`,
+
+    const res = await fetch(
+      "https://integrate.api.nvidia.com/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.NVIDIA_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model,
+          max_tokens: 600,
+          temperature: 0.3,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userContent },
+          ],
+        }),
       },
-      body: JSON.stringify({
-        model,
-        max_tokens: 600,
-        temperature: 0.3,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userContent },
-        ],
-      }),
-    });
+    );
 
     if (!res.ok) {
       const errText = await res.text();
@@ -336,7 +367,9 @@ async function summarizeWithNvidia(payload: ReportPayload): Promise<string | nul
     const content = json?.choices?.[0]?.message?.content as unknown;
     if (Array.isArray(content)) {
       const joined = content
-        .map((c: NvidiaMessagePart) => (typeof c?.text === "string" ? c.text : ""))
+        .map((c: NvidiaMessagePart) =>
+          typeof c?.text === "string" ? c.text : "",
+        )
         .filter(Boolean)
         .join("\n");
       return joined ? joined.trim() : null;

@@ -15,14 +15,19 @@ from langgraph.prebuilt import ToolNode
 import os
 
 # Load system prompt from file
-SYSTEM_PROMPT_PATH = os.path.join(os.path.dirname(__file__), "..", "prompts", "sys-prompt.md")
+SYSTEM_PROMPT_PATH = os.path.join(
+    os.path.dirname(__file__), "..", "prompts", "sys-prompt.md"
+)
 with open(SYSTEM_PROMPT_PATH, "r") as f:
     SYSTEM_PROMPT = f.read()
 
 # Load survey data from file
-SURVEY_DATA_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "sample-survey-responses.md")
+SURVEY_DATA_PATH = os.path.join(
+    os.path.dirname(__file__), "..", "data", "sample-survey-responses.md"
+)
 with open(SURVEY_DATA_PATH, "r") as f:
     SURVEY_DATA = f.read()
+
 
 class AgentState(MessagesState):
     """
@@ -32,8 +37,10 @@ class AgentState(MessagesState):
     the CopilotKitState fields. We're also adding a custom field, `language`,
     which will be used to set the language of the agent.
     """
+
     tools: List[Any]
     # your_custom_agent_state: str = ""
+
 
 # @tool
 # def your_tool_here(your_arg: str):
@@ -57,20 +64,24 @@ def create_chat_model() -> Any:
     try:
         from langchain_nvidia_ai_endpoints import ChatNVIDIA
     except ImportError as exc:
-        raise ImportError("Install langchain-nvidia-ai-endpoints to use NVIDIA models") from exc
+        raise ImportError(
+            "Install langchain-nvidia-ai-endpoints to use NVIDIA models"
+        ) from exc
 
     api_key = os.getenv("NVIDIA_API_KEY")
     if not api_key:
         raise ValueError("NVIDIA_API_KEY is required to run the agent.")
 
     return ChatNVIDIA(
-        model=DEFAULT_MODEL_NAME or "meta/llama-3.1-70b-instruct",
+        model=DEFAULT_MODEL_NAME or "openai/gpt-oss-20b",
         temperature=DEFAULT_MODEL_TEMPERATURE,
         api_key=api_key,
     )
 
 
-async def chat_node(state: AgentState, config: RunnableConfig) -> Command[Literal["tool_node", "__end__"]]:
+async def chat_node(
+    state: AgentState, config: RunnableConfig
+) -> Command[Literal["tool_node", "__end__"]]:
     """
     Standard chat node based on the ReAct design pattern. It handles:
     - The model to use (and binds in CopilotKit actions and the tools defined above)
@@ -107,10 +118,13 @@ async def chat_node(state: AgentState, config: RunnableConfig) -> Command[Litera
     )
 
     # 4. Run the model to generate a response
-    response = await model_ready.ainvoke([
-        system_message,
-        *state["messages"],
-    ], config)
+    response = await model_ready.ainvoke(
+        [
+            system_message,
+            *state["messages"],
+        ],
+        config,
+    )
 
     # only route to tool node if tool is not in the tools list
     if route_to_tool_node(response):
@@ -119,7 +133,7 @@ async def chat_node(state: AgentState, config: RunnableConfig) -> Command[Litera
             goto="tool_node",
             update={
                 "messages": [response],
-            }
+            },
         )
 
     # 5. We've handled all tool calls, so we can end the graph.
@@ -127,9 +141,9 @@ async def chat_node(state: AgentState, config: RunnableConfig) -> Command[Litera
         goto=END,
         update={
             "messages": [response],
-        }
+        },
     )
-    
+
 
 def route_to_tool_node(response: BaseMessage):
     """
@@ -143,6 +157,7 @@ def route_to_tool_node(response: BaseMessage):
         if tool_call.get("name") in backend_tool_names:
             return True
     return False
+
 
 # Define the workflow graph
 workflow = StateGraph(AgentState)
