@@ -15,6 +15,7 @@ const serviceAdapter = new ExperimentalEmptyAdapter();
 //    integration to setup the connection.
 const runtime = new CopilotRuntime({
   agents: {
+    // @ts-expect-error - Type mismatch between @ag-ui/client versions in dependencies
     sample_agent: new LangGraphAgent({
       deploymentUrl: process.env.LANGGRAPH_DEPLOYMENT_URL || "http://localhost:8123",
       graphId: "sample_agent",

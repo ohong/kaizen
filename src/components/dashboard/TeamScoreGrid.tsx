@@ -27,7 +27,7 @@ export function TeamScoreGrid({ summary, className }: TeamScoreGridProps) {
   return (
     <section className={`hud-panel hud-corner flex h-full flex-col p-6 transition-transform duration-200 hover:-translate-y-1 ${className ?? ""}`}>
       <p className="font-mono text-xs uppercase tracking-wider text-[var(--hud-text-dim)]">
-        Team performance lenses
+        Overall team performance
       </p>
 
       <div className="mt-4 flex flex-col gap-2">
@@ -57,12 +57,7 @@ function ScoreCard({ title, score }: ScoreCardProps) {
       onMouseLeave={() => setShowTooltip(false)}
       style={{ zIndex: showTooltip ? 20 : "auto" }}
     >
-      <div className="flex items-center justify-between">
-        <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--hud-text-dim)]">{title}</span>
-        <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--hud-text-dim)]">
-          Team score
-        </span>
-      </div>
+      <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--hud-text-dim)]">{title}</span>
       <span className={`mt-2 text-4xl font-semibold ${scoreColor}`}>
         {displayScore}
       </span>

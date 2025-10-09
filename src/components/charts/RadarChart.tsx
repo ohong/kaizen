@@ -25,7 +25,6 @@ interface RadarChartProps {
 
 export function RadarChartViz({
   data,
-  title,
   name = "Score",
   color = "#8b5cf6",
 }: RadarChartProps) {

@@ -481,7 +481,7 @@ function ManagerDashboardContent() {
   return (
     <CopilotSidebar
       clickOutsideToClose={false}
-      defaultOpen={true}
+      defaultOpen={false}
       shortcut="k"
       Button={SidebarToggleButton}
       labels={{
@@ -561,12 +561,6 @@ function ManagerDashboardContent() {
               </div>
 
               <div id="benchmarks" className="space-y-6">
-                <section className="space-y-2">
-                  <h2 className="text-xl font-semibold text-[var(--hud-text-bright)]">Benchmark Intelligence</h2>
-                  <p className="max-w-3xl text-sm text-[var(--hud-text-dim)]">
-                    Inspect cycle time, review responsiveness, and benchmark positioning across the last 90 days.
-                  </p>
-                </section>
                 <div className="flex flex-col gap-8">
                   <WidgetizedWorkflowSection
                     sizeVsTimeData={sizeVsTimeData}

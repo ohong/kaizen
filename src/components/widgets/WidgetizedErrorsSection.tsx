@@ -211,9 +211,7 @@ export function WidgetizedErrorsSection({ owner, name }: WidgetizedErrorsSection
       w.type !== "top-error-messages" &&
       (w.type === "errors-over-time" ||
         w.type === "services-impacted" ||
-        w.type === "environment-spread" ||
-        w.type === "recent-errors" ||
-        w.type === "top-error-messages")
+        w.type === "environment-spread")
   );
 
   return (

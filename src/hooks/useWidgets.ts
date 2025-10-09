@@ -17,11 +17,12 @@ export function useWidgets(namespace: string = "default") {
       const stored = localStorage.getItem(storageKey);
       if (stored) {
         const parsed = JSON.parse(stored) as WidgetConfig[];
-        const normalised = parsed.map((widget) =>
-          widget.type === "recent-errors" || widget.type === "top-error-messages"
-            ? { ...widget, size: widget.size === "full" ? "full" : "medium" }
-            : widget
-        );
+        const normalised = parsed.map((widget) => {
+          const size = widget.size as WidgetSize;
+          return widget.type === "recent-errors" || widget.type === "top-error-messages"
+            ? { ...widget, size: size === "full" ? ("full" as const) : ("medium" as const) }
+            : widget;
+        });
         setWidgets(normalised);
       }
     } catch (error) {
