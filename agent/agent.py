@@ -73,7 +73,7 @@ def create_chat_model() -> Any:
         raise ValueError("NVIDIA_API_KEY is required to run the agent.")
 
     return ChatNVIDIA(
-        model=DEFAULT_MODEL_NAME or "openai/gpt-oss-20b",
+        model=DEFAULT_MODEL_NAME or "meta/llama-3.1-70b-instruct",
         temperature=DEFAULT_MODEL_TEMPERATURE,
         api_key=api_key,
     )

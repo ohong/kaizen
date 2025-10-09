@@ -28,7 +28,7 @@ export function getScoreInterpretation(score: number | null | undefined): string
   if (score >= 80) {
     return "Excellent performance";
   } else if (score >= 60) {
-    return "Good performance with room to improve";
+    return "Good performance";
   } else if (score >= 40) {
     return "Needs attention";
   } else {

@@ -70,12 +70,6 @@ function ScoreCard({ title, score }: ScoreCardProps) {
       {showTooltip && (
         <div className="pointer-events-none absolute left-0 right-0 top-full z-50 mt-2 w-full rounded-lg border border-[var(--hud-border)] bg-[var(--hud-bg-elevated)] p-3 shadow-lg">
           <p className="text-xs font-semibold text-[var(--hud-text-bright)]">{interpretation}</p>
-          {score.interpretation && (
-            <p className="mt-1 text-xs text-[var(--hud-text-dim)]">{score.interpretation}</p>
-          )}
-          {score.recommendation && (
-            <p className="mt-2 text-xs text-[var(--hud-text)]">{score.recommendation}</p>
-          )}
           <div className="mt-2 border-t border-[var(--hud-border)] pt-2 text-[10px] text-[var(--hud-text-dim)]">
             <p>Score ranges: 80-100 (Excellent), 60-79 (Good), 40-59 (Needs attention), 0-39 (Critical)</p>
           </div>

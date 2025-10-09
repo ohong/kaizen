@@ -433,16 +433,16 @@ function interpretTeamScore(metric: string, score: number): {
 
   if (score >= 80) {
     interpretation = `Team ${metric} is excellent—sets the bar for the org.`;
-    recommendation = "Keep reinforcing the practices that make this sustainable.";
+    recommendation = "Score range: 80-100";
   } else if (score >= 60) {
     interpretation = `Team ${metric} is solid with room to optimise.`;
-    recommendation = "Dig into the sub-metrics above to find the biggest win.";
+    recommendation = "Score range: 60-79";
   } else if (score >= 40) {
-    interpretation = `Team ${metric} is trending in the wrong direction.`;
-    recommendation = "Focus on the most lagging signal above to close gaps quickly.";
+    interpretation = `Team ${metric} needs improvement.`;
+    recommendation = "Score range: 40-59";
   } else {
     interpretation = `Team ${metric} is at risk—intervene quickly.`;
-    recommendation = "Prioritise coaching and process changes before it impacts delivery further.";
+    recommendation = "Score range: 0-39";
   }
 
   return { interpretation, recommendation };
